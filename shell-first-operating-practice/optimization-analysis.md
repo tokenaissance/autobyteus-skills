@@ -260,3 +260,62 @@ Approved by the user. Applied to `shell-first-operating-practice/SKILL.md`:
 - Section map: 24 top-level sections, Working Style contains the three soft-behavior subsections.
 - Skill frontmatter and name unchanged: `shell-first-operating-practice`.
 - Two-pass review: macro (contiguous operational spine, grouped soft behavior) and micro (deduplicated git status, framed anti-patterns) both pass.
+
+## Macro review (user-requested assessment)
+
+Review Status: Analysis complete - awaiting user approval (macro assessment only; no authoritative edit proposed yet)
+
+The user asked whether the skill is good from a macro level. This records the full optimizer macro pass applied to the whole package, beyond the earlier file-operation and organization scoping.
+
+### Package structure and ownership
+
+- Single-file package: `shell-first-operating-practice/SKILL.md` (261 lines) is the sole authoritative owner of the foundational shell-first operating procedure. There are no references, scripts, assets, or competing guides.
+- Each operational concern lives in exactly one section. The `Command Families` table is the reference spine; the domain sections expand it. No two files or sections compete for the same rule.
+- Authoritative sources are unambiguous: one owner per rule, no drift surface.
+
+**Verdict:** Good. Clean topology, no structural duplication, no stale artifacts.
+
+### Content architecture and logical flow
+
+- Spine: Purpose (scope/audience) -> Entry Procedure (prereqs) -> Operating Loop (workflow) -> Operating Rules -> Command Families (reference) -> domain sections (Orientation..Verification) -> Working Style (soft behavior) -> Anti-Patterns (failure modes).
+- This is the correct order: purpose first, then prerequisites, workflow, rules, then how-to reference, then verification, then soft behavior, then failure modes.
+- Prerequisites precede dependent actions; validation follows the behavior it proves; the report/handoff step closes the Operating Loop.
+
+**Verdict:** Good. Coherent primary path, no buried core, no abrupt transitions.
+
+### Behavioral grounding and invariants
+
+- Invariants are explicit and consistent: shell-first (not shell-only); bounded, deterministic, non-interactive commands; preserve unrelated user work; no destructive actions without approval; verify every change.
+- Every command cited (`pwd`, `sed`, `nl`, `head`, `tail`, `wc`, `cat`, `rg`, `jq`, `cp`, `mv`, `rm`, `git`, `curl`, `tar`) is a standard Unix tool; claims are grounded, not speculative.
+- No scope drift into a domain; the skill stays a platform-agnostic foundational layer.
+- Tool-name dependencies (`run_bash`, `edit_file`) are guarded with portability notes rather than hard-coded.
+
+**Verdict:** Good. Grounded, no unsupported certainty, invariants preserved throughout.
+
+### Potential macro observations (minor, non-blocking)
+
+- **Single-file size (borderline).** 261 lines is large for a `SKILL.md`; the optimizer rubric would normally route detailed reference content into a `references/` file. This is a frequently loaded, co-loaded foundational skill, and the sections are tight and non-redundant, so splitting would add indirection without reducing instruction load. Recommendation: **Keep** single-file unless a `references/` split is explicitly wanted.
+- **Entry Procedure vs Operating Loop step 1 (Orient) slight overlap.** Both touch workspace orientation. Distinct enough (entry gate `pwd`-first vs in-loop context confirmation). No change needed.
+- **Verification appears in the loop, a rule, and a dedicated section.** This is an intentional layered reminder (procedural step + guardrail + detailed section), not macro duplication. Acceptable.
+
+### Macro verdict
+
+**Good.** No blocking macro defect. The package structure, ownership, content architecture, flow, grounding, and invariants are coherent. The only borderline item is total single-file length, which is defensible for a foundational skill; no edit is proposed unless the user wants a references split.
+
+## Macro review - target skill files changed during analysis: None
+
+## Implementation record (cat complete-file read)
+
+Approved by the user. Applied to `shell-first-operating-practice/SKILL.md`:
+
+- Added one bullet at the top of the `File Inspection` section stating the positive complete/small-file read path: `cat path/to/file`, with the `wc -l` size gate and `sed -n` range fallback for larger files.
+- This closes the earlier-read gap (cat only appeared as a "do not use on large files" anti-pattern) without weakening the large-file guard. Keeps the skill self-contained single-file, per the user's decision not to split into references.
+
+### Validation performed
+
+- Re-read the edited `File Inspection` section; flow intact and reads correctly in order (cat for small complete reads first, then size gate, then ranges).
+- `git diff --check` and trailing-whitespace check: passed.
+- Skill frontmatter and name unchanged: `shell-first-operating-practice`.
+- Two-pass review: macro unchanged and coherent; micro change is a single, grounded clarity addition with no behavior reversal.
+
+## Target skill files changed in this pass: shell-first-operating-practice/SKILL.md

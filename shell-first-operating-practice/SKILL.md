@@ -101,6 +101,7 @@ Use the right command family for the job:
 
 ## File Inspection
 
+- Use `cat path/to/file` to read a complete small file directly; check size first with `wc -l` and use `sed -n` ranges for larger files.
 - Use `wc -l path/to/file` to understand file size before reading broadly.
 - Use `sed -n '40,120p' path/to/file` to read exact windows.
 - Use `nl -ba path/to/file | sed -n '40,120p'` when line numbers matter.
