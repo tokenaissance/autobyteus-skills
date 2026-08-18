@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "browser-automation"
+version = "0.1.0"
+description = "Portable agent skill and CLI for browser automation with a retained thin MCP adapter"
+authors = [{name = "AutoByteus"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.28.1",
+    "pydantic>=2.12.5",
+    "playwright>=1.51.0",
+    "beautifulsoup4>=4.12.0",
+    "typing-extensions>=4.15.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-anyio>=0",
+    "trio>=0.23",
+    "python-dotenv>=1.2.1",
+]
+
+[project.scripts]
+browser = "browser_automation.cli:main"
+browser-mcp-server = "browser_automation.mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+markers = [
+    "integration: executable coverage crossing packaged process boundaries",
+    "real_chrome: opt-in coverage requiring a local Chrome/Chromium executable",
+]

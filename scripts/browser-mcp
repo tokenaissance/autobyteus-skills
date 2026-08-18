@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keep stdout reserved for MCP JSON-RPC. Diagnostics go to stderr/log only.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
+LOG_DIR="${BROWSER_MCP_LOG_DIR:-${HOME:-/tmp}/.cache/browser-automation}"
+LOG_FILE="$LOG_DIR/browser-mcp.log"
+mkdir -p "$LOG_DIR"
+
+log() {
+  printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >>"$LOG_FILE"
+}
+
+export PATH="/usr/local/bin:/opt/homebrew/bin:${HOME:-}/.local/bin:${HOME:-}/.cargo/bin:${HOME:-}/.pyenv/shims:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
+find_uv() {
+  if [ -n "${UV_BIN:-}" ] && [ -x "$UV_BIN" ]; then
+    printf '%s\n' "$UV_BIN"
+    return 0
+  fi
+  if command -v uv >/dev/null 2>&1; then
+    command -v uv
+    return 0
+  fi
+  for candidate in "${HOME:-}/.local/bin/uv" "${HOME:-}/.cargo/bin/uv" /usr/local/bin/uv /opt/homebrew/bin/uv; do
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! UV_PATH="$(find_uv)"; then
+  log 'ERROR: uv was not found; the MCP adapter could not start.'
+  printf 'browser MCP launcher error: uv was not found. See %s\n' "$LOG_FILE" >&2
+  exit 127
+fi
+
+log "Starting browser MCP with uv=$UV_PATH project=$PROJECT_DIR"
+if [ -n "${BROWSER_MCP_PYTHON:-}" ]; then
+  exec "$UV_PATH" --quiet --directory "$PROJECT_DIR" run --frozen --python "$BROWSER_MCP_PYTHON" browser-mcp-server 2>>"$LOG_FILE"
+fi
+exec "$UV_PATH" --quiet --directory "$PROJECT_DIR" run --frozen browser-mcp-server 2>>"$LOG_FILE"
