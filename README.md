@@ -2,6 +2,8 @@
 
 `browser-automation/` is one relocatable browser-automation skill bundle. It contains the agent instructions, Bash launcher, locked Python runtime, task-oriented CLI, shared browser application core, and a retained thin MCP adapter.
 
+For the reusable conversion convention behind this CLI, see [Argument-Isomorphic MCP-to-CLI Mapping](../docs/mcp-to-cli-mapping.md).
+
 ## Agent skill and CLI
 
 At runtime, the agent receives and reads an exact locator for this bundle's `SKILL.md`. The committed skill names the launcher only as `scripts/browser`. The agent resolves that relative resource from the directory containing the exact advertised/read `SKILL.md`, then invokes the resolved launcher with Bash from its current task workspace. It passes `health-check` for preflight and `--help` or `<command> --help` for the command reference.
