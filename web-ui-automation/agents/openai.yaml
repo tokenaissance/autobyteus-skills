@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web UI Automation"
+  short_description: "Inspect web controls and operate them natively"
+  default_prompt: "Use $web-ui-automation to inspect a web page, map a target to screen coordinates, and operate it with native input."
