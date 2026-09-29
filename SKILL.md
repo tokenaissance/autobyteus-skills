@@ -1,6 +1,6 @@
 ---
 name: browser-automation
-description: Operate a local Chrome/Chromium session through the bundled browser CLI for explicit-tab navigation, authenticated-page inspection, DOM observation, JavaScript interaction, screenshots, and multi-step browser workflows. Use when an agent must act in or inspect a live browser, especially existing signed-in tabs. Do not use for generic web research or ordinary URL lookup when a non-browser web tool is sufficient.
+description: Operate a local Chrome/Chromium session through the bundled browser CLI for explicit-tab navigation, authenticated-page inspection, DOM observation, JavaScript interaction with a visible presentation cursor, screenshots, MP4 tab recordings, and multi-step browser workflows, including Electron apps such as an isolated AutoByteus instance. Use when an agent must act in or inspect a live browser, especially existing signed-in tabs. Do not use for generic web research or ordinary URL lookup when a non-browser web tool is sufficient.
 ---
 
 # Browser Automation
@@ -27,9 +27,34 @@ Treat every command name below as arguments to the resolved launcher, not as a b
 6. Verify the result with a fresh read or DOM snapshot. Serialize commands against the same tab; independent clients can race.
 7. Close only tabs opened for the task. Do not automatically close tabs discovered with `attach-tab` or other user-owned tabs.
 
-For exact flags, invoke the resolved launcher with `--help` or with a command followed by `--help`. Core commands are `list-tabs`, `attach-tab`, `open-tab`, `close-tab`, `navigate`, `read-page`, `screenshot`, `dom-snapshot`, and `run-script`.
+For exact flags, invoke the resolved launcher with `--help` or with a command followed by `--help`. Core commands are `list-tabs`, `attach-tab`, `open-tab`, `close-tab`, `navigate`, `read-page`, `screenshot`, `dom-snapshot`, `run-script`, `start-recording`, and `stop-recording`.
 
 Map script calls directly to operation flags. The normal form is `run-script --tab-id "$TAB_ID" --script '(arg) => ({title: document.title, label: arg.label})' --arg-json '{"label":"direct"}'`. This preserves `run_script(tab_id, script, arg)` without a generic payload or temporary indirection. `--script-file`, `--script-stdin`, and `--arg-file` remain optional when the content already exists in a file/stdin or a concrete shell/process limit prevents faithful argv transport. Do not choose an alternate source merely because JavaScript is nontrivial, long, multiline, or complex.
+
+## Controlling an app or a fixed browser endpoint
+
+The launcher controls the CDP endpoint on `127.0.0.1` at the port in `CHROME_REMOTE_DEBUGGING_PORT` (default 9222). By default it launches Chrome when nothing listens there. To control something already running, such as an isolated AutoByteus instance started with `pnpm isolated-app start` (control port 9333), pass the port and attach-only mode in the invocation environment, for example `env CHROME_REMOTE_DEBUGGING_PORT=9333 BROWSER_AUTOMATION_ATTACH_ONLY=1 bash "<resolved launcher>" list-tabs`. Attach-only never launches a browser: if nothing listens it fails with `BROWSER_UNAVAILABLE` naming the endpoint. An Electron app window appears as one tab. Its `tab_id` changes when the app restarts, so run `list-tabs` again after a restart.
+
+## Presentation helper (`__abDemo`)
+
+`run-script` has a built-in helper for human-like, watchable actions. Mention `__abDemo` in a script and it is available in the page (installed automatically, also after navigation or reload). Scripts that never mention it leave the page untouched. Targets are objects: `{text: 'Create Agent'}` (visible text, `aria-label`, or button value; exact after whitespace trim) or `{selector: '#agent-name'}`, plus optional `nth` (0-based) when several elements match. Bare strings are rejected.
+
+- `__abDemo.click(target)`, `hover(target)`: the cursor glides to the element, then click/hover events fire (a click shows a ripple).
+- `__abDemo.type(target, 'My Agent', {delayMs: 60, clear: true})`: paced typing into inputs, textareas, and contenteditable; `clear: false` appends.
+- `__abDemo.press('Enter')`, `press('k', {meta: true})`: key events on the focused element.
+- `__abDemo.scroll(target_or_null, {y: 600})`, `select(target, {label: 'Codex'})` (or `{value}`/`{index}`), `waitFor(target, {timeoutMs: 10000, state: 'visible'|'hidden'})`.
+- `__abDemo.caption('Create your first agent', {position: 'bottom'|'top'})`, `hideCaption()`, `highlight(target, {durationMs: 1500})`, `setPresentation(false)` (instant actions, no overlays), `status()`.
+
+Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, action, error: {code, message}}` with code `NOT_FOUND`, `AMBIGUOUS` (with `candidates`), `TIMEOUT`, `NOT_EDITABLE`, or `INVALID_TARGET`. Chain steps in one async script, for example `run-script --tab-id "$TAB_ID" --script 'async () => { await __abDemo.caption("Create an agent"); return await __abDemo.click({text: "Create Agent"}); }'`, then verify with `dom-snapshot` or a screenshot. Events are script-dispatched: native OS dialogs, menus, and file pickers cannot be driven this way.
+
+## Recording a tab
+
+`start-recording --tab-id "$TAB_ID" --output-file tutorial.mp4 [--fps 25] [--overwrite]` starts a background recording of that tab. The command returns immediately; recording continues across any number of later commands (helper actions, screenshots, navigation). `stop-recording --tab-id "$TAB_ID"` finishes it and returns `artifact.path` (the MP4 inside the workspace), `duration_seconds`, `frames`, and `end_reason`. Recording needs `ffmpeg` on PATH (or `BROWSER_AUTOMATION_FFMPEG_BIN`) and no OS screen-recording permission. It captures the page content with helper overlays, not native dialogs or other windows.
+
+- If the tab or app closes first, the recording finalizes itself; a later `stop-recording` returns it with `end_reason` `target_closed`.
+- A recording keeps running if the agent run that started it is cancelled. Any later process can finish it with `stop-recording` for the same tab and endpoint, and stopping the app or closing the tab finalizes it.
+- Page dialogs (`alert`/`confirm`) raised while recording stay open for the app or a human to answer. While such a dialog is open, other commands against that browser wait until it is answered.
+- Recording the user's own Chrome while its window is covered or minimized may freeze frames; isolated AutoByteus instances started by `pnpm isolated-app` keep rendering while covered.
 
 ## Output and recovery
 
@@ -46,7 +71,10 @@ Treat stderr as diagnostics, not machine output. Recover by code:
 - `AMBIGUOUS_TAB_MATCH`: add a more specific URL/title matcher.
 - `INVALID_ARGUMENT`, `INVALID_URL`, `ARTIFACT_PATH_REJECTED`, `ARTIFACT_EXISTS`: correct the request; use a workspace-relative path and explicit `--overwrite` only when replacement is intended.
 - `NAVIGATION_TIMEOUT`, `BROWSER_OPERATION_FAILED`: observe current tab state before deciding whether retry is safe.
-- `SCRIPT_FAILED`: simplify/fix the script or return a JSON-serializable value.
+- `SCRIPT_FAILED`: simplify/fix the script or return a JSON-serializable value. `details.detail` `presentation_helper_install_failed` means the page refused the helper.
+- `RECORDING_DEPENDENCY_MISSING`: install `ffmpeg` or set `BROWSER_AUTOMATION_FFMPEG_BIN`.
+- `RECORDING_ALREADY_ACTIVE`: stop the running recording of that tab first. `RECORDING_NOT_ACTIVE`: nothing to stop for that tab.
+- `RECORDING_FAILED`: read `details` (`reason`, `partial_file`, `log_file`); a partial MP4 is kept when one was written.
 
 ## Safety
 

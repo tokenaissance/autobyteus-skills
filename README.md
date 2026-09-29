@@ -34,6 +34,10 @@ bash "<resolved launcher>" run-script --tab-id "$TAB_ID" \
 
 `--script-file`, `--script-stdin`, and `--arg-file` are optional alternate sources only when input already resides there or a concrete shell/process limit prevents faithful argv transport. Complexity alone is not a reason to introduce file or stdin indirection.
 
+`run-script` includes a built-in presentation helper, `window.__abDemo` (click/type/press/hover/scroll/select/waitFor by `{text}` or `{selector}`, with an animated cursor, click indicators, paced typing, captions and highlights). It is installed in the page, in the same session, just before any script that mentions `__abDemo`; pages whose scripts never mention it are untouched. The helper API is documented in `SKILL.md`.
+
+`start-recording --tab-id --output-file <name>.mp4 [--fps] [--overwrite]` and `stop-recording --tab-id` (MCP `start_recording`/`stop_recording`) record one tab to an H.264 MP4. A detached recorder worker holds its own CDP screencast session and feeds constant-rate frames to `ffmpeg` (`ffmpeg` on PATH or `BROWSER_AUTOMATION_FFMPEG_BIN`). It is spawned with the tool's own interpreter, connects directly to the configured endpoint and never launches a browser. Every other command keeps its connect-operate-disconnect behaviour. Recording state lives in the per-user runtime directory (`<tmp>/browser-automation-runtime-<uid>/recordings/`), so any later process can stop a recording; the worker's identity is verified before it is signalled. A closed tab or app finalizes the recording (`end_reason: target_closed`). The worker registers a no-op dialog listener, so page dialogs raised during a recording stay open instead of being auto-dismissed.
+
 Artifact and input paths are workspace-relative. The launcher captures the caller directory in `BROWSER_AUTOMATION_WORKSPACE` unless the caller already supplied an absolute existing workspace. Existing output files require `--overwrite`.
 
 ## Runtime model and support boundary
@@ -80,6 +84,8 @@ The default pytest run includes unit/adapter coverage and Chrome-free process in
 BROWSER_AUTOMATION_REAL_TESTS=1 \
   uv --directory browser-automation run --frozen --extra test python -m pytest tests/integration
 ```
+
+Set `BROWSER_AUTOMATION_ATTACH_ONLY=1` (also `true`/`yes`) to attach only: when nothing listens at the configured endpoint, operations fail with `BROWSER_UNAVAILABLE` (exit 3) naming the endpoint instead of launching Chrome. Use it to control an app that exposes its own CDP port, such as an isolated AutoByteus desktop instance.
 
 Chrome/Chromium over CDP is the supported browser runtime. If the browser runtime launches Chrome 136+, configure a non-default `CHROME_USER_DATA_DIR`. For an already-running browser container, configure its `CHROME_REMOTE_DEBUGGING_PORT` and do not replace its profile.
 
