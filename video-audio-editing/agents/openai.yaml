@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Audio Editing"
+  short_description: "Edit video and audio files with ffmpeg through a safe CLI"
+  default_prompt: "Use $video-audio-editing to trim, convert, merge, caption or otherwise edit the relevant video or audio files safely."

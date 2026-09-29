@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.python-version
+.DS_Store
+.cursor/rules/implementation_steps.md
+.cursor/rules/prd.md
+
+# Generated test artifacts
+tests/test_outputs/
+tests/sample_video_5s.mp4
+tests/sample2.mp4
+tests/sample_video_*.mp4
+tests/sample_audio_*s.wav
