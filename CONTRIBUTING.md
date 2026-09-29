@@ -131,8 +131,9 @@ pytest tests/
 # Run your specific tests
 pytest tests/test_your_new_feature.py -v
 
-# Test the MCP server manually
-python server.py
+# Try the CLI, or start the MCP adapter manually
+scripts/video-audio --help
+scripts/video-audio-mcp
 ```
 
 ### 6. 📝 Update Documentation

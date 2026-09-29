@@ -39,7 +39,7 @@ Booleans that default to true use `--x/--no-x` (for example `--reencode` / `--no
 - Text overlay: `add-text-overlay --video-path in.mp4 --output-video-path out.mp4 --text-elements-json '[{"text":"Hello","start_time":0,"end_time":3}]'`
 - Image overlay: `add-image-overlay --video-path in.mp4 --image-path logo.png --output-video-path out.mp4 --position top_right --opacity 0.6`
 - Convert: `convert-video-format --input-video-path in.mov --output-video-path out.mp4 --target-format mp4`; audio: `convert-audio-format`; properties: `convert-video-properties`, `convert-audio-properties`, `set-video-resolution`, `set-video-codec`, `set-video-frame-rate`, `set-audio-bitrate`, ...
-- Speed / silence / aspect / fades: `change-video-speed --speed-factor 2`, `remove-silence`, `change-aspect-ratio --target-aspect-ratio 9:16 --resize-mode crop`, `add-basic-transitions --transition-type fade_in --duration-seconds 1`
+- Speed / silence / aspect / fades: `change-video-speed --speed-factor 2`, `remove-silence --media-path in.mp4 --output-media-path out.mp4`, `change-aspect-ratio --target-aspect-ratio 9:16 --resize-mode crop`, `add-basic-transitions --transition-type fade_in --duration-seconds 1`
 - Image + audio to video: `create-video-from-image-and-audio --image-path cover.png --audio-path track.mp3 --output-video-path out.mp4`
 
 ## Output and recovery
