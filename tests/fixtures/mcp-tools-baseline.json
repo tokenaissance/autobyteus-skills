@@ -1,0 +1,1669 @@
+[
+ {
+  "description": "Insert B-roll clips into a main video. Prefer absolute paths for all paths; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "broll_clips": {
+     "description": "List of B-roll clip dicts (clip_path, insert_at_timestamp, etc.)",
+     "items": {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     "title": "Broll Clips",
+     "type": "array"
+    },
+    "main_video_path": {
+     "description": "Absolute path to the main video; relative resolves vs server cwd",
+     "title": "Main Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output with B-roll; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "main_video_path",
+    "broll_clips",
+    "output_video_path"
+   ],
+   "title": "add_b_rollArguments",
+   "type": "object"
+  },
+  "name": "add_b_roll",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "add_b_rollOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Adds basic fade transitions to the beginning or end of a video.",
+  "inputSchema": {
+   "properties": {
+    "duration_seconds": {
+     "description": "Transition duration in seconds",
+     "title": "Duration Seconds",
+     "type": "number"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output with transition; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "transition_type": {
+     "description": "fade_in, fade_out, crossfade_from_black, crossfade_to_black",
+     "title": "Transition Type",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "transition_type",
+    "duration_seconds"
+   ],
+   "title": "add_basic_transitionsArguments",
+   "type": "object"
+  },
+  "name": "add_basic_transitions",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "add_basic_transitionsOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Adds an image overlay (watermark/logo) to a video.",
+  "inputSchema": {
+   "properties": {
+    "end_time": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional overlay end time (seconds)",
+     "title": "End Time"
+    },
+    "height": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional overlay height (e.g., '180' or '-1' to auto)",
+     "title": "Height"
+    },
+    "image_path": {
+     "description": "Absolute path to overlay image; relative resolves vs server cwd",
+     "title": "Image Path",
+     "type": "string"
+    },
+    "opacity": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional opacity 0.0-1.0",
+     "title": "Opacity"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output with overlay; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "position": {
+     "default": "top_right",
+     "description": "Overlay position: top_right, top_left, bottom_right, bottom_left, center",
+     "title": "Position",
+     "type": "string"
+    },
+    "start_time": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional overlay start time (seconds)",
+     "title": "Start Time"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    },
+    "width": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional overlay width (e.g., '320' or '-1' to auto)",
+     "title": "Width"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "image_path"
+   ],
+   "title": "add_image_overlayArguments",
+   "type": "object"
+  },
+  "name": "add_image_overlay",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "add_image_overlayOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Burn subtitles from an SRT onto a video. Built-in layout: FontSize=20; WrapStyle=0 (smart wrap between CJK chars\u20142 disables wrapping and can clip); MarginV auto (~2% of video height, clamped 12\u201350); BorderStyle=1; Outline=1; BackColour=&H80000000 (semi-transparent). Auto line wrapping is always on (CJK lines capped ~34 chars based on video width and font size). Override visuals with font_style, e.g. {\"font_size\":\"22\",\"font_color\":\"&H00FFFFFF\",\"outline_color\":\"&H00000000\",\"back_colour\":\"&H80000000\",\"margin_v\":\"36\",\"wrap_style\":\"0\"}. Honored keys: font_name, font_size, font_color/primary_color, outline_color, outline_width, shadow_color, shadow_offset_x/y, alignment, margin_v/l/r, wrap_style, border_style, back_colour.",
+  "inputSchema": {
+   "properties": {
+    "font_style": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional ASS/ssa style overrides (see README)",
+     "title": "Font Style"
+    },
+    "output_video_path": {
+     "description": "Absolute path for subtitled output; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "srt_file_path": {
+     "description": "Absolute path to SRT file; relative resolves vs server cwd",
+     "title": "Srt File Path",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "srt_file_path",
+    "output_video_path"
+   ],
+   "title": "add_subtitlesArguments",
+   "type": "object"
+  },
+  "name": "add_subtitles",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "add_subtitlesOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Adds one or more text overlays to a video at specified times and positions.",
+  "inputSchema": {
+   "properties": {
+    "output_video_path": {
+     "description": "Absolute path for output with text overlays; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "text_elements": {
+     "description": "List of overlay specs (text, start_time, end_time, positions, optional fontfile)",
+     "items": {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     "title": "Text Elements",
+     "type": "array"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "text_elements"
+   ],
+   "title": "add_text_overlayArguments",
+   "type": "object"
+  },
+  "name": "add_text_overlay",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "add_text_overlayOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Changes the aspect ratio of a video, using padding or cropping.\nArgs listed in PRD.\nReturns:\n    A status message indicating success or failure.\n",
+  "inputSchema": {
+   "properties": {
+    "output_video_path": {
+     "description": "Absolute path for aspect-adjusted video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "padding_color": {
+     "default": "black",
+     "description": "Pad color when using pad mode, e.g., black",
+     "title": "Padding Color",
+     "type": "string"
+    },
+    "resize_mode": {
+     "default": "pad",
+     "description": "pad (default) or crop",
+     "title": "Resize Mode",
+     "type": "string"
+    },
+    "target_aspect_ratio": {
+     "description": "Target aspect ratio like '16:9'",
+     "title": "Target Aspect Ratio",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "target_aspect_ratio"
+   ],
+   "title": "change_aspect_ratioArguments",
+   "type": "object"
+  },
+  "name": "change_aspect_ratio",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "change_aspect_ratioOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Changes the playback speed of a video (and its audio, if present).",
+  "inputSchema": {
+   "properties": {
+    "output_video_path": {
+     "description": "Absolute path for the speed-changed output; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "speed_factor": {
+     "description": "Speed multiplier (>0), e.g., 0.5 slow, 2.0 fast",
+     "title": "Speed Factor",
+     "type": "number"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "speed_factor"
+   ],
+   "title": "change_video_speedArguments",
+   "type": "object"
+  },
+  "name": "change_video_speed",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "change_video_speedOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Concatenates multiple audio files into a single output file.",
+  "inputSchema": {
+   "properties": {
+    "audio_paths": {
+     "description": "List of audio file paths; prefer absolute (relative resolves vs server cwd)",
+     "items": {
+      "type": "string"
+     },
+     "title": "Audio Paths",
+     "type": "array"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for concatenated audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "audio_paths",
+    "output_audio_path"
+   ],
+   "title": "concatenate_audiosArguments",
+   "type": "object"
+  },
+  "name": "concatenate_audios",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "concatenate_audiosOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Concatenate videos (optional xfade). Prefer absolute paths for all paths; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "output_video_path": {
+     "description": "Absolute path for concatenated output; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "transition_duration": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Duration in seconds for xfade (required when transition_effect set)",
+     "title": "Transition Duration"
+    },
+    "transition_effect": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Optional xfade transition type (only when exactly two videos)",
+     "title": "Transition Effect"
+    },
+    "video_paths": {
+     "description": "List of input video paths; prefer absolute (relative resolves vs server cwd)",
+     "items": {
+      "type": "string"
+     },
+     "title": "Video Paths",
+     "type": "array"
+    }
+   },
+   "required": [
+    "video_paths",
+    "output_video_path"
+   ],
+   "title": "concatenate_videosArguments",
+   "type": "object"
+  },
+  "name": "concatenate_videos",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "concatenate_videosOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Converts an audio file to the specified target format.",
+  "inputSchema": {
+   "properties": {
+    "input_audio_path": {
+     "description": "Absolute path to source audio; relative resolves vs server cwd",
+     "title": "Input Audio Path",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for converted audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    },
+    "target_format": {
+     "description": "Target format, e.g., mp3, wav, aac",
+     "title": "Target Format",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_audio_path",
+    "output_audio_path",
+    "target_format"
+   ],
+   "title": "convert_audio_formatArguments",
+   "type": "object"
+  },
+  "name": "convert_audio_format",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "convert_audio_formatOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Converts audio file format and ALL specified properties like bitrate, sample rate, and channels.\n\nArgs:\n    input_audio_path: Path to the source audio file.\n    output_audio_path: Path to save the converted audio file.\n    target_format: Desired output audio format (e.g., 'mp3', 'wav', 'aac').\n    bitrate: Target audio bitrate (e.g., '128k', '192k'). Optional.\n    sample_rate: Target audio sample rate in Hz (e.g., 44100, 48000). Optional.\n    channels: Number of audio channels (1 for mono, 2 for stereo). Optional.\nReturns:\n    A status message indicating success or failure.\n",
+  "inputSchema": {
+   "properties": {
+    "bitrate": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Target audio bitrate (e.g., '128k')",
+     "title": "Bitrate"
+    },
+    "channels": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Number of channels (1=mono,2=stereo)",
+     "title": "Channels"
+    },
+    "input_audio_path": {
+     "description": "Absolute path to source audio; relative resolves vs server cwd",
+     "title": "Input Audio Path",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for converted audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    },
+    "sample_rate": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Target sample rate in Hz",
+     "title": "Sample Rate"
+    },
+    "target_format": {
+     "description": "Target audio format, e.g., mp3, wav, aac",
+     "title": "Target Format",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_audio_path",
+    "output_audio_path",
+    "target_format"
+   ],
+   "title": "convert_audio_propertiesArguments",
+   "type": "object"
+  },
+  "name": "convert_audio_properties",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "convert_audio_propertiesOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Converts a video file to the specified target format, attempting to copy codecs first.",
+  "inputSchema": {
+   "properties": {
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for converted video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "target_format": {
+     "description": "Target format/container, e.g., mp4, mov, mkv",
+     "title": "Target Format",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "target_format"
+   ],
+   "title": "convert_video_formatArguments",
+   "type": "object"
+  },
+  "name": "convert_video_format",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "convert_video_formatOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Converts video file format and ALL specified properties like resolution, codecs, bitrates, and frame rate.\nArgs listed in PRD.\nReturns:\n    A status message indicating success or failure.\n",
+  "inputSchema": {
+   "properties": {
+    "audio_bitrate": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Audio bitrate, e.g., '192k'",
+     "title": "Audio Bitrate"
+    },
+    "audio_channels": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Audio channels, 1=mono, 2=stereo",
+     "title": "Audio Channels"
+    },
+    "audio_codec": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Audio codec, e.g., aac, opus",
+     "title": "Audio Codec"
+    },
+    "audio_sample_rate": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Audio sample rate, e.g., 48000",
+     "title": "Audio Sample Rate"
+    },
+    "frame_rate": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Frame rate, e.g., 30",
+     "title": "Frame Rate"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for converted video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "resolution": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Target resolution, e.g., 1920x1080 or 720; 'preserve' to keep",
+     "title": "Resolution"
+    },
+    "target_format": {
+     "description": "Target container/format, e.g., mp4, mov, mkv",
+     "title": "Target Format",
+     "type": "string"
+    },
+    "video_bitrate": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Video bitrate, e.g., '4M'",
+     "title": "Video Bitrate"
+    },
+    "video_codec": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Video codec, e.g., libx264, hevc, vp9",
+     "title": "Video Codec"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "target_format"
+   ],
+   "title": "convert_video_propertiesArguments",
+   "type": "object"
+  },
+  "name": "convert_video_properties",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "convert_video_propertiesOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Create a video from a still image plus audio. Prefer absolute paths for all paths; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "audio_path": {
+     "description": "Absolute path to the audio file; prefer absolute (relative resolves vs server cwd)",
+     "title": "Audio Path",
+     "type": "string"
+    },
+    "fps": {
+     "default": 24,
+     "description": "Frames per second (e.g., 24)",
+     "title": "Fps",
+     "type": "integer"
+    },
+    "image_path": {
+     "description": "Absolute path to the still image; prefer absolute (relative resolves vs server cwd)",
+     "title": "Image Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for the output video; prefer absolute (relative resolves vs server cwd)",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "image_path",
+    "audio_path",
+    "output_video_path"
+   ],
+   "title": "create_video_from_image_and_audioArguments",
+   "type": "object"
+  },
+  "name": "create_video_from_image_and_audio",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "create_video_from_image_and_audioOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Extract audio from a video file. Prefer absolute paths for inputs/outputs; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "audio_codec": {
+     "default": "mp3",
+     "description": "Audio codec (e.g., mp3, aac, wav)",
+     "title": "Audio Codec",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for extracted audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_audio_path"
+   ],
+   "title": "extract_audio_from_videoArguments",
+   "type": "object"
+  },
+  "name": "extract_audio_from_video",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "extract_audio_from_videoOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Extract a single frame as an image. Prefer absolute paths; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "frame_location": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "description": "Frame location: 'first', 'last', timestamp string, or seconds",
+     "title": "Frame Location"
+    },
+    "image_quality": {
+     "default": 2,
+     "description": "Image quality (1=best, 31=worst)",
+     "title": "Image Quality",
+     "type": "integer"
+    },
+    "output_image_path": {
+     "description": "Absolute path for extracted frame image; relative resolves vs server cwd",
+     "title": "Output Image Path",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_image_path",
+    "frame_location"
+   ],
+   "title": "extract_frame_from_videoArguments",
+   "type": "object"
+  },
+  "name": "extract_frame_from_video",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "extract_frame_from_videoOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Gets the duration of a video or audio file in seconds.\n\nArgs:\n    media_path: The path to the input media file.\n\nReturns:\n    The duration in seconds as a float on success, or an error string on failure.\n",
+  "inputSchema": {
+   "properties": {
+    "media_path": {
+     "description": "Absolute path to input media; relative resolves vs server cwd",
+     "title": "Media Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "media_path"
+   ],
+   "title": "get_media_durationArguments",
+   "type": "object"
+  },
+  "name": "get_media_duration",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "string"
+      }
+     ],
+     "title": "Result"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "get_media_durationOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Returns a simple health status to confirm the server is running.",
+  "inputSchema": {
+   "properties": {},
+   "title": "health_checkArguments",
+   "type": "object"
+  },
+  "name": "health_check",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "health_checkOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Removes silent segments from an audio or video file.",
+  "inputSchema": {
+   "properties": {
+    "media_path": {
+     "description": "Absolute path to the input audio/video; relative resolves vs server cwd",
+     "title": "Media Path",
+     "type": "string"
+    },
+    "min_silence_duration_ms": {
+     "default": 500,
+     "description": "Minimum silence duration in milliseconds, e.g., 500",
+     "title": "Min Silence Duration Ms",
+     "type": "integer"
+    },
+    "output_media_path": {
+     "description": "Absolute path for silence-removed output; relative resolves vs server cwd",
+     "title": "Output Media Path",
+     "type": "string"
+    },
+    "silence_threshold_db": {
+     "default": -30.0,
+     "description": "Silence threshold in dB, e.g., -30.0",
+     "title": "Silence Threshold Db",
+     "type": "number"
+    }
+   },
+   "required": [
+    "media_path",
+    "output_media_path"
+   ],
+   "title": "remove_silenceArguments",
+   "type": "object"
+  },
+  "name": "remove_silence",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "remove_silenceOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Replace a video's audio track. Prefer absolute paths for all paths; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "match_duration_mode": {
+     "default": "shortest",
+     "description": "Duration handling: 'shortest' or 'stretch_video'",
+     "title": "Match Duration Mode",
+     "type": "string"
+    },
+    "new_audio_path": {
+     "description": "Absolute path to the new audio file; relative resolves vs server cwd",
+     "title": "New Audio Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "new_audio_path",
+    "output_video_path"
+   ],
+   "title": "replace_audio_trackArguments",
+   "type": "object"
+  },
+  "name": "replace_audio_track",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "replace_audio_trackOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the bitrate for an audio file.",
+  "inputSchema": {
+   "properties": {
+    "bitrate": {
+     "description": "Target audio bitrate, e.g., '192k'",
+     "title": "Bitrate",
+     "type": "string"
+    },
+    "input_audio_path": {
+     "description": "Absolute path to source audio; relative resolves vs server cwd",
+     "title": "Input Audio Path",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for output audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_audio_path",
+    "output_audio_path",
+    "bitrate"
+   ],
+   "title": "set_audio_bitrateArguments",
+   "type": "object"
+  },
+  "name": "set_audio_bitrate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_audio_bitrateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the number of channels for an audio file (1 for mono, 2 for stereo).",
+  "inputSchema": {
+   "properties": {
+    "channels": {
+     "description": "Number of channels, 1=mono, 2=stereo",
+     "title": "Channels",
+     "type": "integer"
+    },
+    "input_audio_path": {
+     "description": "Absolute path to source audio; relative resolves vs server cwd",
+     "title": "Input Audio Path",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for output audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_audio_path",
+    "output_audio_path",
+    "channels"
+   ],
+   "title": "set_audio_channelsArguments",
+   "type": "object"
+  },
+  "name": "set_audio_channels",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_audio_channelsOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the sample rate for an audio file.",
+  "inputSchema": {
+   "properties": {
+    "input_audio_path": {
+     "description": "Absolute path to source audio; relative resolves vs server cwd",
+     "title": "Input Audio Path",
+     "type": "string"
+    },
+    "output_audio_path": {
+     "description": "Absolute path for output audio; relative resolves vs server cwd",
+     "title": "Output Audio Path",
+     "type": "string"
+    },
+    "sample_rate": {
+     "description": "Target sample rate in Hz, e.g., 48000",
+     "title": "Sample Rate",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "input_audio_path",
+    "output_audio_path",
+    "sample_rate"
+   ],
+   "title": "set_audio_sample_rateArguments",
+   "type": "object"
+  },
+  "name": "set_audio_sample_rate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_audio_sample_rateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the audio bitrate of a video's audio track, attempting to copy the video stream.",
+  "inputSchema": {
+   "properties": {
+    "audio_bitrate": {
+     "description": "Target audio bitrate, e.g., '160k'",
+     "title": "Audio Bitrate",
+     "type": "string"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "audio_bitrate"
+   ],
+   "title": "set_video_audio_track_bitrateArguments",
+   "type": "object"
+  },
+  "name": "set_video_audio_track_bitrate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_audio_track_bitrateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the number of audio channels of a video's audio track, attempting to copy the video stream.",
+  "inputSchema": {
+   "properties": {
+    "audio_channels": {
+     "description": "Audio channels, 1=mono, 2=stereo",
+     "title": "Audio Channels",
+     "type": "integer"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "audio_channels"
+   ],
+   "title": "set_video_audio_track_channelsArguments",
+   "type": "object"
+  },
+  "name": "set_video_audio_track_channels",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_audio_track_channelsOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the audio codec of a video's audio track, attempting to copy the video stream.",
+  "inputSchema": {
+   "properties": {
+    "audio_codec": {
+     "description": "Audio codec, e.g., aac, opus, ac3",
+     "title": "Audio Codec",
+     "type": "string"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "audio_codec"
+   ],
+   "title": "set_video_audio_track_codecArguments",
+   "type": "object"
+  },
+  "name": "set_video_audio_track_codec",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_audio_track_codecOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the audio sample rate of a video's audio track, attempting to copy the video stream.",
+  "inputSchema": {
+   "properties": {
+    "audio_sample_rate": {
+     "description": "Target audio sample rate in Hz, e.g., 48000",
+     "title": "Audio Sample Rate",
+     "type": "integer"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "audio_sample_rate"
+   ],
+   "title": "set_video_audio_track_sample_rateArguments",
+   "type": "object"
+  },
+  "name": "set_video_audio_track_sample_rate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_audio_track_sample_rateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the video bitrate of a video, attempting to copy the audio stream.",
+  "inputSchema": {
+   "properties": {
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "video_bitrate": {
+     "description": "Target video bitrate, e.g., '4M'",
+     "title": "Video Bitrate",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "video_bitrate"
+   ],
+   "title": "set_video_bitrateArguments",
+   "type": "object"
+  },
+  "name": "set_video_bitrate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_bitrateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the video codec of a video, attempting to copy the audio stream.",
+  "inputSchema": {
+   "properties": {
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "video_codec": {
+     "description": "Video codec, e.g., libx264, hevc, vp9",
+     "title": "Video Codec",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "video_codec"
+   ],
+   "title": "set_video_codecArguments",
+   "type": "object"
+  },
+  "name": "set_video_codec",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_codecOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the frame rate of a video, attempting to copy the audio stream.",
+  "inputSchema": {
+   "properties": {
+    "frame_rate": {
+     "description": "Target frame rate, e.g., 24, 30, 60",
+     "title": "Frame Rate",
+     "type": "integer"
+    },
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "frame_rate"
+   ],
+   "title": "set_video_frame_rateArguments",
+   "type": "object"
+  },
+  "name": "set_video_frame_rate",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_frame_rateOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Sets the resolution of a video, attempting to copy the audio stream.",
+  "inputSchema": {
+   "properties": {
+    "input_video_path": {
+     "description": "Absolute path to source video; relative resolves vs server cwd",
+     "title": "Input Video Path",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for output video; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "resolution": {
+     "description": "Target resolution, e.g., 1920x1080 or 720",
+     "title": "Resolution",
+     "type": "string"
+    }
+   },
+   "required": [
+    "input_video_path",
+    "output_video_path",
+    "resolution"
+   ],
+   "title": "set_video_resolutionArguments",
+   "type": "object"
+  },
+  "name": "set_video_resolution",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "set_video_resolutionOutput",
+   "type": "object"
+  }
+ },
+ {
+  "description": "Trim a video between start and end times. Prefer absolute paths for inputs/outputs; relative paths are resolved against the server working directory.",
+  "inputSchema": {
+   "properties": {
+    "end_time": {
+     "description": "End time (HH:MM:SS or seconds)",
+     "title": "End Time",
+     "type": "string"
+    },
+    "output_video_path": {
+     "description": "Absolute path for trimmed output; relative resolves vs server cwd",
+     "title": "Output Video Path",
+     "type": "string"
+    },
+    "reencode": {
+     "default": true,
+     "description": "If true, re-encode for accuracy; false for faster stream copy",
+     "title": "Reencode",
+     "type": "boolean"
+    },
+    "start_time": {
+     "description": "Start time (HH:MM:SS or seconds)",
+     "title": "Start Time",
+     "type": "string"
+    },
+    "video_path": {
+     "description": "Absolute path to the input video; relative resolves vs server cwd",
+     "title": "Video Path",
+     "type": "string"
+    }
+   },
+   "required": [
+    "video_path",
+    "output_video_path",
+    "start_time",
+    "end_time"
+   ],
+   "title": "trim_videoArguments",
+   "type": "object"
+  },
+  "name": "trim_video",
+  "outputSchema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "trim_videoOutput",
+   "type": "object"
+  }
+ }
+]
