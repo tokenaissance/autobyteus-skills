@@ -1,1 +1,8 @@
 tmp/
+
+# Python bundles (browser-automation, video-audio-editing)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
