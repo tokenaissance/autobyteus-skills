@@ -156,6 +156,8 @@ def test_mcp_runtime_defaults_validation_and_inventory(monkeypatch: pytest.Monke
         "read_page",
         "run_script",
         "screenshot",
+        "start_recording",
+        "stop_recording",
     ]
     close_schema = server._tool_manager._tools["close_tab"].parameters  # type: ignore[attr-defined]
     assert "close_browser" not in close_schema.get("properties", {})
@@ -266,3 +268,38 @@ raise SystemExit(cli.main(["list-tabs"]))
         "command": "list-tabs",
         "result": expected_result,
     }
+
+
+@pytest.mark.parametrize(
+    ("argv", "method", "expected"),
+    [
+        (
+            ["start-recording", "--tab-id", "T1", "--output-file", "clip.mp4"],
+            "start_recording",
+            {"tab_id": "T1", "output_file": "clip.mp4", "fps": 25, "overwrite": False},
+        ),
+        (
+            ["start-recording", "--tab-id", "T1", "--output-file", "clip.mp4", "--fps", "10", "--overwrite"],
+            "start_recording",
+            {"tab_id": "T1", "output_file": "clip.mp4", "fps": 10, "overwrite": True},
+        ),
+        (["stop-recording", "--tab-id", "T1"], "stop_recording", {"tab_id": "T1"}),
+    ],
+)
+def test_cli_recording_commands_map_argument_isomorphically(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str], method: str, expected: dict
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeApplication:
+        async def start_recording(self, **kwargs):
+            captured.update(method="start_recording", **kwargs)
+            return {"ok": True}
+
+        async def stop_recording(self, **kwargs):
+            captured.update(method="stop_recording", **kwargs)
+            return {"ok": True}
+
+    monkeypatch.setattr(cli, "BrowserApplication", FakeApplication)
+    assert asyncio.run(cli.execute(cli.build_parser().parse_args(argv))) == {"ok": True}
+    assert captured == {"method": method, **expected}

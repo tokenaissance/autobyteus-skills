@@ -28,6 +28,8 @@ EXPECTED_TOOLS = {
     "screenshot",
     "dom_snapshot",
     "run_script",
+    "start_recording",
+    "stop_recording",
 }
 
 

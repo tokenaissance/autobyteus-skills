@@ -20,6 +20,8 @@ from browser_automation.mcp.tools.open_tab import register as register_open_tab
 from browser_automation.mcp.tools.read_page import register as register_read_page
 from browser_automation.mcp.tools.run_script import register as register_run_script
 from browser_automation.mcp.tools.screenshot import register as register_screenshot
+from browser_automation.mcp.tools.start_recording import register as register_start_recording
+from browser_automation.mcp.tools.stop_recording import register as register_stop_recording
 
 T = TypeVar("T")
 
@@ -45,3 +47,5 @@ def register_tools(server: FastMCP, application: BrowserApplication) -> None:
     register_screenshot(server, application)
     register_dom_snapshot(server, application)
     register_run_script(server, application)
+    register_start_recording(server, application)
+    register_stop_recording(server, application)

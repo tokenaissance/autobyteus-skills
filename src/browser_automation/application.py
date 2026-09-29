@@ -16,6 +16,8 @@ from browser_automation.contracts import (
     ReadPageResult,
     RunScriptResult,
     ScreenshotResult,
+    StartRecordingResult,
+    StopRecordingResult,
     TabSummary,
 )
 from browser_automation.dom_snapshot import DOM_SNAPSHOT_SCRIPT, normalize_snapshot
@@ -30,12 +32,15 @@ from browser_automation.policy import (
     validate_url,
 )
 from browser_automation.presentation import ensure_installed, script_uses_helper
+from browser_automation.recording import RecordingService
 from browser_automation.runtime import BrowserRuntime
 from browser_automation.script import normalize_script
 
 WAIT_UNTIL_VALUES = ("domcontentloaded", "load", "networkidle")
 CLEANING_MODES = ("raw", "text", "thorough")
 IMAGE_FORMATS = ("png", "jpeg")
+MIN_RECORDING_FPS = 1
+MAX_RECORDING_FPS = 60
 
 
 class BrowserApplication:
@@ -46,9 +51,11 @@ class BrowserApplication:
         *,
         runtime: BrowserRuntime | None = None,
         artifact_policy: ArtifactPolicy | None = None,
+        recording_service: RecordingService | None = None,
     ) -> None:
         self._runtime = runtime or BrowserRuntime()
         self._artifacts = artifact_policy or ArtifactPolicy.from_environment()
+        self._recordings = recording_service or RecordingService()
 
     async def health_check(self) -> HealthCheckResult:
         async with self._runtime.session() as session:
@@ -387,6 +394,48 @@ class BrowserApplication:
                 "output_mode": "artifact",
                 "artifact": artifact,
             }
+
+    async def start_recording(
+        self,
+        *,
+        tab_id: str,
+        output_file: str,
+        fps: int = 25,
+        overwrite: bool = False,
+    ) -> StartRecordingResult:
+        """Start recording one tab to MP4 in the background; other operations stay unaffected."""
+
+        target_id = validate_tab_id(tab_id)
+        self._validate_bool(overwrite, "overwrite")
+        if isinstance(fps, bool) or not isinstance(fps, int) or not MIN_RECORDING_FPS <= fps <= MAX_RECORDING_FPS:
+            raise invalid_argument(f"fps must be in range {MIN_RECORDING_FPS}..{MAX_RECORDING_FPS}.", fps=fps)
+        output = self._artifacts.resolve_output(output_file, overwrite=overwrite)
+        if output.suffix.lower() != ".mp4":
+            raise invalid_argument("The recording output file must end in .mp4.", output_file=output_file)
+        # Same establishment and tab lookup as every other operation, before the worker starts.
+        async with self._runtime.session() as session:
+            await session.resolve_page(target_id)
+        config = self._runtime.config()
+        temporary = self._artifacts.temporary_sibling(output)
+        try:
+            return await self._recordings.start(
+                endpoint=config.endpoint,
+                port=config.port,
+                tab_id=target_id,
+                output=output,
+                temp=temporary,
+                fps=fps,
+                overwrite=overwrite,
+            )
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+
+    async def stop_recording(self, *, tab_id: str) -> StopRecordingResult:
+        """Finish the tab's recording (or report one that already ended) and return the MP4."""
+
+        target_id = validate_tab_id(tab_id)
+        return await self._recordings.stop(port=self._runtime.config().port, tab_id=target_id)
 
     def read_input_text(self, relative_path: str) -> str:
         """Read a CLI-requested source file through the authoritative workspace policy."""

@@ -5,6 +5,7 @@ from browser_automation.runtime.chrome_launcher import (
     ChromeAvailabilityState,
     ChromeLauncher,
     EstablishmentGate,
+    default_runtime_directory,
     probe_cdp_endpoint,
     resolve_chrome_executable,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "EstablishmentGate",
     "BrowserRuntime",
     "BrowserSession",
+    "default_runtime_directory",
     "probe_cdp_endpoint",
     "resolve_chrome_executable",
 ]

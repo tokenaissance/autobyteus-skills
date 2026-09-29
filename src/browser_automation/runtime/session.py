@@ -112,6 +112,11 @@ class BrowserRuntime:
             return self._last_endpoint
         return self._config_factory().endpoint
 
+    def config(self) -> BrowserRuntimeConfig:
+        """The validated configuration the next session would use."""
+
+        return self._config_factory()
+
     @asynccontextmanager
     async def session(self) -> AsyncIterator[BrowserSession]:
         async with self._operation_lock:

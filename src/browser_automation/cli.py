@@ -93,6 +93,18 @@ def build_parser() -> argparse.ArgumentParser:
     arg_source.add_argument("--arg-json")
     arg_source.add_argument("--arg-file")
     _add_optional_output(script)
+
+    start_recording = commands.add_parser(
+        "start-recording",
+        help="Start recording one tab to an MP4 in the agent workspace (runs in the background).",
+    )
+    _add_tab_id(start_recording)
+    start_recording.add_argument("--output-file", required=True, help="Workspace-relative .mp4 path.")
+    start_recording.add_argument("--fps", type=int, default=25)
+    start_recording.add_argument("--overwrite", action="store_true")
+
+    stop_recording = commands.add_parser("stop-recording", help="Finish a tab's recording and report the MP4.")
+    _add_tab_id(stop_recording)
     return parser
 
 
@@ -163,6 +175,15 @@ async def execute(args: argparse.Namespace) -> Any:
             output_file=args.output_file,
             overwrite=args.overwrite,
         )
+    if command == "start-recording":
+        return await app.start_recording(
+            tab_id=args.tab_id,
+            output_file=args.output_file,
+            fps=args.fps,
+            overwrite=args.overwrite,
+        )
+    if command == "stop-recording":
+        return await app.stop_recording(tab_id=args.tab_id)
     raise invalid_argument("Unknown command.", command=command)
 
 

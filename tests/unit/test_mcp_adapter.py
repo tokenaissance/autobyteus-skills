@@ -75,6 +75,25 @@ class FakeApplication:
             "result": 2,
         }
 
+    async def start_recording(self, **kwargs):
+        self.calls.append(("start_recording", kwargs))
+        return {
+            "tab_id": kwargs["tab_id"],
+            "output_file": "/workspace/clip.mp4",
+            "fps": kwargs["fps"],
+            "started_at": "2026-09-29T00:00:00+00:00",
+        }
+
+    async def stop_recording(self, **kwargs):
+        self.calls.append(("stop_recording", kwargs))
+        return {
+            "tab_id": kwargs["tab_id"],
+            "artifact": {"path": "/workspace/clip.mp4", "media_type": "video/mp4", "bytes_written": 10},
+            "duration_seconds": 1.0,
+            "frames": 25,
+            "end_reason": "stopped",
+        }
+
 
 async def _run_with_session(server, client_callable) -> None:
     client_to_server_send, server_read_stream = anyio.create_memory_object_stream[SessionMessage | Exception](0)
@@ -118,6 +137,8 @@ async def test_retained_mcp_inventory_delegates_to_one_application() -> None:
             "screenshot",
             "dom_snapshot",
             "run_script",
+            "start_recording",
+            "stop_recording",
         }
         calls = [
             ("open_tab", {"url": "https://example.com"}),
@@ -128,6 +149,8 @@ async def test_retained_mcp_inventory_delegates_to_one_application() -> None:
             ("screenshot", {"tab_id": "opaque-1", "file_path": "shot.png"}),
             ("dom_snapshot", {"tab_id": "opaque-1"}),
             ("run_script", {"tab_id": "opaque-1", "script": "1 + 1"}),
+            ("start_recording", {"tab_id": "opaque-1", "output_file": "clip.mp4"}),
+            ("stop_recording", {"tab_id": "opaque-1"}),
             ("close_tab", {"tab_id": "opaque-1"}),
         ]
         for name, arguments in calls:
@@ -145,5 +168,11 @@ async def test_retained_mcp_inventory_delegates_to_one_application() -> None:
         "screenshot",
         "dom_snapshot",
         "run_script",
+        "start_recording",
+        "stop_recording",
         "close_tab",
     ]
+    assert application.calls[8] == (
+        "start_recording",
+        {"tab_id": "opaque-1", "output_file": "clip.mp4", "fps": 25, "overwrite": False},
+    )

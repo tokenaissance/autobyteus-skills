@@ -71,3 +71,31 @@ def tab_not_found(tab_id: str) -> BrowserError:
 
 def browser_operation_failed(message: str = "The browser operation failed.") -> BrowserError:
     return BrowserError("BROWSER_OPERATION_FAILED", message, retryable=True, exit_status=5)
+
+
+def recording_dependency_missing(message: str) -> BrowserError:
+    return BrowserError("RECORDING_DEPENDENCY_MISSING", message, retryable=False, exit_status=3)
+
+
+def recording_already_active(tab_id: str) -> BrowserError:
+    return BrowserError(
+        "RECORDING_ALREADY_ACTIVE",
+        "A recording of this tab is already running; stop it first.",
+        retryable=False,
+        exit_status=5,
+        details={"tab_id": tab_id},
+    )
+
+
+def recording_not_active(tab_id: str) -> BrowserError:
+    return BrowserError(
+        "RECORDING_NOT_ACTIVE",
+        "No recording of this tab is active.",
+        retryable=False,
+        exit_status=4,
+        details={"tab_id": tab_id},
+    )
+
+
+def recording_failed(message: str, **details: Any) -> BrowserError:
+    return BrowserError("RECORDING_FAILED", message, retryable=True, exit_status=5, details=details or None)

@@ -115,6 +115,21 @@ class ScreenshotResult(TypedDict):
     artifact: ArtifactResult
 
 
+class StartRecordingResult(TypedDict):
+    tab_id: str
+    output_file: str
+    fps: int
+    started_at: str
+
+
+class StopRecordingResult(TypedDict):
+    tab_id: str
+    artifact: ArtifactResult
+    duration_seconds: float
+    frames: int
+    end_reason: Literal["stopped", "target_closed"]
+
+
 class ErrorPayload(TypedDict):
     code: str
     message: str
