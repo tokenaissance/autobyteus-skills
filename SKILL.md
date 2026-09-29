@@ -60,12 +60,12 @@ Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, a
 
 Native page dialogs (`alert`, `confirm`, `prompt`, "Leave site?") raised by the page of the tab a command works on are handled by that command:
 
-- Give the decision with the action: `run-script` or `navigate` with `--dialog accept` or `--dialog dismiss` (MCP: `dialog`), plus `--prompt-text` (MCP: `prompt_text`) for a prompt. An accepted prompt without text gets its default value. Pass it whenever the action is expected to ask, for example `run-script --tab-id "$TAB_ID" --script '__abDemo.click({text: "Delete"})' --dialog accept`.
+- Give the decision with the action: `run-script` or `navigate` with `--dialog accept` or `--dialog dismiss` (MCP: `dialog`), plus `--prompt-text` (MCP: `prompt_text`) for a prompt. An accepted prompt without text gets its default value. Prompts exist in browsers only; Electron apps such as AutoByteus do not implement `window.prompt()`. Pass it whenever the action is expected to ask, for example `run-script --tab-id "$TAB_ID" --script '__abDemo.click({text: "Delete"})' --dialog accept`.
 - Without a decision, a `confirm`/`prompt`/"Leave site?" is dismissed only so the page is not left blocked, and the command fails with `DIALOG_DECISION_REQUIRED` carrying the dialog's type and message. Decide, then repeat the action with `--dialog`. Side effects that happened before the dialog may repeat.
 - An `alert` is closed and reported; it needs no decision.
-- Successful results list the command's own dialogs in `dialogs` (`type`, `message`, `default_value`, `outcome`, `decided_by`); without dialogs results are unchanged (the MCP result carries `dialogs: null`).
+- Successful results list the command's own dialogs in `dialogs` (`type`, `message`, `default_value`, `outcome`, `decided_by`); without dialogs results are unchanged (in MCP results `dialogs` is absent or `null`).
 - Commands without the option (`open-tab`, `read-page`, `screenshot`, `dom-snapshot`) fail with `DIALOG_DECISION_REQUIRED` if their page asks; trigger that page action through `run-script` or `navigate` with a decision instead.
-- Dialogs in other tabs are never answered or reported. A dialog left open (another tab, or raised between commands) must be answered on screen: by the user, or with OS-level tools such as computer-use on Linux. Until then commands fail with `PAGE_BLOCKED`. Headful Chrome and Electron keep such dialogs open; headless Chrome may cancel another tab's dialog when a command disconnects, and it has no window to answer in.
+- Dialogs in other tabs are never answered or reported. A dialog left open (another tab, or raised between commands) must be answered on screen: by the user, or with an OS-level screen-control (computer-use) tool where one is available. Until then commands fail with `PAGE_BLOCKED`. Headful Chrome and Electron keep such dialogs open; headless Chrome may cancel another tab's dialog when a command disconnects, and it has no window to answer in.
 - Chrome shows "Leave site?" only for pages the user has interacted with. `close-tab` closes without that prompt.
 
 ## Output and recovery
@@ -78,7 +78,7 @@ Except for help, parse stdout as exactly one JSON value:
 Treat stderr as diagnostics, not machine output. Recover by code:
 
 - `BOOTSTRAP_FAILED`, `CONFIGURATION_ERROR`, `BROWSER_UNAVAILABLE`: check the diagnostic and retry only when the environment/browser condition can change.
-- `PAGE_BLOCKED`: the browser is running but refused the connection within 8 s, most likely because a page dialog (alert/confirm/prompt/"Leave site?") waits for an answer, otherwise a hung page. `details.targets` lists the open tabs. Have the dialog answered in the window (by the user, or with OS-level tools such as computer-use on Linux), then retry. A headless browser has no window: close that tab or restart the browser.
+- `PAGE_BLOCKED`: the browser is running but refused the connection within 8 s, most likely because a page dialog (alert/confirm/prompt/"Leave site?") waits for an answer, otherwise a hung page. `details.targets` lists the open tabs. Have the dialog answered in the window (by the user, or with an OS-level screen-control (computer-use) tool where one is available), then retry. A headless browser has no window: close that tab or restart the browser.
 - `TAB_NOT_FOUND`: list tabs again; the target was closed or replaced.
 - `NO_TAB_MATCH`: refine or correct discovery criteria.
 - `AMBIGUOUS_TAB_MATCH`: add a more specific URL/title matcher.
