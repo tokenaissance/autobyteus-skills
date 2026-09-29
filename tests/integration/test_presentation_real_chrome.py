@@ -155,3 +155,29 @@ def test_presentation_overlays_are_transient_and_never_block(
       return ['click', 'caption', 'highlight', 'cursor'].map((kind) => root.querySelectorAll(`[data-ab-demo="${kind}"]`).length);
     }""")
     assert after == [0, 0, 0, 1]
+
+
+def test_targets_are_hit_tested_like_a_person_with_an_open_modal(
+    live_chrome: LiveChrome, test_site: LocalSite, tmp_path: Path
+) -> None:
+    environment, tab_id = _open_demo(live_chrome, test_site, tmp_path)
+    results = _script(tmp_path, environment, tab_id, """async () => {
+      await __abDemo.setPresentation(false);
+      const r = {};
+      r.background = await __abDemo.click({ text: 'Cancel' });
+      await __abDemo.click({ text: 'Open modal' });
+      r.coveredText = await __abDemo.click({ text: 'Save' });
+      r.coveredSelector = await __abDemo.click({ selector: '#save' });
+      r.modal = await __abDemo.click({ text: 'Cancel' });
+      r.far = await __abDemo.click({ text: 'Far away' });
+      r.events = window.events;
+      return r;
+    }""")
+    assert results["background"]["ok"] is True
+    for key in ("coveredText", "coveredSelector"):
+        assert results[key]["ok"] is False
+        assert results[key]["error"]["code"] == "OBSCURED"
+        assert results[key]["error"]["covering"]["tag"] == "div"
+    assert results["modal"]["ok"] is True
+    assert results["far"]["ok"] is True
+    assert results["events"] == ["bg-cancel", "modal-cancel", "far"]

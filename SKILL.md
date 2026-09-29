@@ -37,7 +37,7 @@ The launcher controls the CDP endpoint on `127.0.0.1` at the port in `CHROME_REM
 
 ## Presentation helper (`__abDemo`)
 
-`run-script` has a built-in helper for human-like, watchable actions. Mention `__abDemo` in a script and it is available in the page (installed automatically, also after navigation or reload). Scripts that never mention it leave the page untouched. Targets are objects: `{text: 'Create Agent'}` (visible text, `aria-label`, or button value; exact after whitespace trim) or `{selector: '#agent-name'}`, plus optional `nth` (0-based) when several elements match. Bare strings are rejected.
+`run-script` has a built-in helper for human-like, watchable actions. Mention `__abDemo` in a script and it is available in the page (installed automatically, also after navigation or reload). Scripts that never mention it leave the page untouched. Targets are objects: `{text: 'Create Agent'}` (visible text, `aria-label`, or button value; exact after whitespace trim) or `{selector: '#agent-name'}`, plus optional `nth` (0-based) when several elements match. Bare strings are rejected. Actions only reach elements a person could click: the topmost element at the target's center must be the target, so with an in-page popup or modal open, `click({text: 'Cancel'})` hits the modal's button, and controls behind the modal are not reachable.
 
 - `__abDemo.click(target)`, `hover(target)`: the cursor glides to the element, then click/hover events fire (a click shows a ripple).
 - `__abDemo.type(target, 'My Agent', {delayMs: 60, clear: true})`: paced typing into inputs, textareas, and contenteditable; `clear: false` appends.
@@ -45,7 +45,7 @@ The launcher controls the CDP endpoint on `127.0.0.1` at the port in `CHROME_REM
 - `__abDemo.scroll(target_or_null, {y: 600})`, `select(target, {label: 'Codex'})` (or `{value}`/`{index}`), `waitFor(target, {timeoutMs: 10000, state: 'visible'|'hidden'})`.
 - `__abDemo.caption('Create your first agent', {position: 'bottom'|'top'})`, `hideCaption()`, `highlight(target, {durationMs: 1500})`, `setPresentation(false)` (instant actions, no overlays), `status()`.
 
-Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, action, error: {code, message}}` with code `NOT_FOUND`, `AMBIGUOUS` (with `candidates`), `TIMEOUT`, `NOT_EDITABLE`, or `INVALID_TARGET`. Chain steps in one async script, for example `run-script --tab-id "$TAB_ID" --script 'async () => { await __abDemo.caption("Create an agent"); return await __abDemo.click({text: "Create Agent"}); }'`, then verify with `dom-snapshot` or a screenshot. Events are script-dispatched: native OS dialogs, menus, and file pickers cannot be driven this way.
+Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, action, error: {code, message}}` with code `NOT_FOUND`, `AMBIGUOUS` (with `candidates`), `OBSCURED` (matches exist but are covered; `covering` names the covering element, so close the popup first), `TIMEOUT`, `NOT_EDITABLE`, or `INVALID_TARGET`. Chain steps in one async script, for example `run-script --tab-id "$TAB_ID" --script 'async () => { await __abDemo.caption("Create an agent"); return await __abDemo.click({text: "Create Agent"}); }'`, then verify with `dom-snapshot` or a screenshot. Events are script-dispatched: native OS dialogs, menus, and file pickers cannot be driven this way.
 
 ## Recording a tab
 

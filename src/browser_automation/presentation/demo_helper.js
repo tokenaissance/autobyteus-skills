@@ -93,24 +93,71 @@
         && normalizeText(element.value) === text);
   }
 
-  function findCandidates(target, { requireEnabled }) {
+  function findMatches(target, { requireEnabled }) {
+    const usable = (element) => isVisible(element) && !(requireEnabled && isDisabled(element));
     if (target.selector) {
-      let matches;
       try {
-        matches = Array.from(document.querySelectorAll(target.selector));
+        return Array.from(document.querySelectorAll(target.selector)).filter(usable);
       } catch {
         throw new HelperError('INVALID_TARGET', `Invalid CSS selector: ${target.selector}`);
       }
-      return matches.filter((element) => isVisible(element) && !(requireEnabled && isDisabled(element)));
     }
     const text = normalizeText(target.text);
-    const matches = Array.from(document.querySelectorAll('body *')).filter((element) => (
-      textMatches(element, text) && isVisible(element) && !(requireEnabled && isDisabled(element))
-    ));
-    const interactive = matches.filter((element) => element.matches(INTERACTIVE_SELECTOR));
-    const pool = interactive.length > 0 ? interactive : matches;
-    // An ancestor matches only because it wraps a matching descendant; keep the deepest.
+    return Array.from(document.querySelectorAll('body *')).filter((element) => textMatches(element, text) && usable(element));
+  }
+
+  // Text targets: prefer interactive elements, and drop ancestors that match only because they
+  // wrap a matching descendant. Selector targets are taken as selected.
+  function narrow(target, elements) {
+    if (target.selector) return elements;
+    const interactive = elements.filter((element) => element.matches(INTERACTIVE_SELECTOR));
+    const pool = interactive.length > 0 ? interactive : elements;
     return pool.filter((element) => !pool.some((other) => other !== element && element.contains(other)));
+  }
+
+  function findCandidates(target, { requireEnabled }) {
+    return narrow(target, findMatches(target, { requireEnabled }));
+  }
+
+  function inViewport(element) {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    return x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight;
+  }
+
+  function scrollPositions(element) {
+    const positions = [];
+    for (let node = element.parentElement; node; node = node.parentElement) {
+      if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+        positions.push([node, node.scrollLeft, node.scrollTop]);
+      }
+    }
+    positions.push([null, window.scrollX, window.scrollY]);
+    return positions;
+  }
+
+  function restoreScrollPositions(positions) {
+    for (const [node, left, top] of positions) {
+      if (node) {
+        node.scrollLeft = left;
+        node.scrollTop = top;
+      } else {
+        window.scrollTo({ left, top, behavior: 'instant' });
+      }
+    }
+  }
+
+  // Actionable like for a person: the topmost element at the target's center (after scrolling it
+  // into view) is the target or inside it. Off-screen targets are scrolled and restored within this
+  // synchronous task, so nothing visibly moves. Overlays of this helper never hit-test.
+  function hitTest(element) {
+    const positions = inViewport(element) ? null : scrollPositions(element);
+    if (positions) element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+    const point = targetPoint(element);
+    const hit = document.elementFromPoint(point.x, point.y);
+    if (positions) restoreScrollPositions(positions);
+    return hit && (hit === element || element.contains(hit)) ? { ok: true } : { ok: false, cover: hit };
   }
 
   function candidateSummary(element) {
@@ -119,11 +166,24 @@
     return summary;
   }
 
-  function resolveTarget(target, { requireEnabled = true } = {}) {
+  function resolveTarget(target, { requireEnabled = true, actionable = true } = {}) {
     validateTarget(target);
-    const candidates = findCandidates(target, { requireEnabled });
-    if (candidates.length === 0) {
+    const matches = findMatches(target, { requireEnabled });
+    if (matches.length === 0) {
       throw new HelperError('NOT_FOUND', 'No visible element matches the target.');
+    }
+    let candidates;
+    if (actionable) {
+      const tested = matches.map((element) => ({ element, result: hitTest(element) }));
+      candidates = narrow(target, tested.filter((entry) => entry.result.ok).map((entry) => entry.element));
+      if (candidates.length === 0) {
+        const cover = tested.find((entry) => entry.result.cover)?.result.cover;
+        throw new HelperError('OBSCURED', 'Matching elements are covered by another element (for example an open popup or modal).', {
+          ...(cover ? { covering: candidateSummary(cover) } : {}),
+        });
+      }
+    } else {
+      candidates = narrow(target, matches);
     }
     if ('nth' in target) {
       if (target.nth >= candidates.length) {
@@ -297,20 +357,26 @@
     return { element, point };
   }
 
+  // A real pointer event goes to the topmost element under the cursor: the target or its descendant.
+  function pointerTarget(element, point) {
+    const hit = document.elementFromPoint(point.x, point.y);
+    return hit && element.contains(hit) ? hit : element;
+  }
+
   const api = {
     version,
 
     click: (target) => run('click', target, async () => {
       const { element, point } = await approach(target);
       showClickIndicator(point);
-      dispatchClick(element, point);
+      dispatchClick(pointerTarget(element, point), point);
       await sleep(state.presentation ? 180 : 0);
       return ok('click', { target: describeTarget(target) });
     }),
 
     hover: (target) => run('hover', target, async () => {
       const { element, point } = await approach(target);
-      dispatchHover(element, point);
+      dispatchHover(pointerTarget(element, point), point);
       return ok('hover', { target: describeTarget(target) });
     }),
 
@@ -430,7 +496,7 @@
     },
 
     highlight: (target, options = {}) => run('highlight', target, async () => {
-      const element = resolveTarget(target, { requireEnabled: false });
+      const element = resolveTarget(target, { requireEnabled: false, actionable: false });
       await bringIntoView(element);
       const rect = element.getBoundingClientRect();
       const box = overlayElement('div', {

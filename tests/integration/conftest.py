@@ -36,6 +36,13 @@ DEMO_PAGE = """<!doctype html><html><head><title>Presentation Demo</title></head
 <select id="runtime"><option value="a">Alpha</option><option value="c">Codex</option></select>
 <div id="hover-target">Hover me</div>
 <div id="scroller" style="height:80px;overflow:auto"><div style="height:1200px">long content</div></div>
+<button id="open-modal" type="button">Open modal</button>
+<button id="bg-cancel" type="button">Cancel</button>
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10">
+  <div style="margin:120px auto;width:300px;background:#fff;padding:20px"><button id="modal-cancel" type="button">Cancel</button></div>
+</div>
+<div style="height:2400px"></div>
+<button id="far" type="button">Far away</button>
 <script>
 window.events = [];
 const log = (entry) => window.events.push(entry);
@@ -47,6 +54,10 @@ document.querySelectorAll('.dup').forEach((button, index) => button.addEventList
 document.querySelector('[aria-label="Close dialog"]').addEventListener('click', () => log('close'));
 document.getElementById('hover-target').addEventListener('mouseenter', () => log('hover'));
 document.getElementById('agent-name').addEventListener('change', (event) => log('change:' + event.target.value));
+document.getElementById('open-modal').addEventListener('click', () => { document.getElementById('modal').style.display = 'block'; });
+document.getElementById('bg-cancel').addEventListener('click', () => log('bg-cancel'));
+document.getElementById('modal-cancel').addEventListener('click', () => { log('modal-cancel'); document.getElementById('modal').style.display = 'none'; });
+document.getElementById('far').addEventListener('click', () => log('far'));
 document.addEventListener('keydown', (event) => log('key:' + event.key + (event.metaKey ? '+meta' : '')));
 </script></body></html>"""
 
