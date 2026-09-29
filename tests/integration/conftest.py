@@ -59,6 +59,10 @@ document.getElementById('bg-cancel').addEventListener('click', () => log('bg-can
 document.getElementById('modal-cancel').addEventListener('click', () => { log('modal-cancel'); document.getElementById('modal').style.display = 'none'; });
 document.getElementById('far').addEventListener('click', () => log('far'));
 document.addEventListener('keydown', (event) => log('key:' + event.key + (event.metaKey ? '+meta' : '')));
+window.askDelete = () => { window.answer = confirm('Delete this item?'); return window.answer; };
+window.askName = () => { window.givenName = prompt('Your name?', 'Default Name'); return window.givenName; };
+window.notify = () => { alert('Saved!'); window.alerted = true; return true; };
+window.addEventListener('beforeunload', (event) => { if (window.guard) { event.preventDefault(); event.returnValue = ''; } });
 </script></body></html>"""
 
 
@@ -79,6 +83,9 @@ class Handler(BaseHTTPRequestHandler):
         title = query.get("title", ["Browser Automation Integration"])[0]
         if parsed.path == "/demo":
             body = DEMO_PAGE
+        elif parsed.path == "/confirm-on-load":
+            body = """<!doctype html><html><head><title>Confirm on load</title></head><body>
+<script>window.loadAnswer = confirm('Continue loading?');</script><p id="loaded">loaded</p></body></html>"""
         elif parsed.path == "/next":
             body = f"""<!doctype html><html><head><title>{title}</title></head>
 <body><h1 id="heading">Next Page {token}</h1><a id="back" href="/page">Back</a></body></html>"""

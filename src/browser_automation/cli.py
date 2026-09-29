@@ -59,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_tab_id(navigate)
     navigate.add_argument("--url", required=True)
     _add_navigation_options(navigate)
+    _add_dialog_options(navigate)
 
     read = commands.add_parser("read-page", help="Read page content inline or into a workspace artifact.")
     _add_tab_id(read)
@@ -93,6 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     arg_source.add_argument("--arg-json")
     arg_source.add_argument("--arg-file")
     _add_optional_output(script)
+    _add_dialog_options(script)
 
     start_recording = commands.add_parser(
         "start-recording",
@@ -115,6 +117,16 @@ def _add_tab_id(parser: argparse.ArgumentParser) -> None:
 def _add_navigation_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--wait-until", choices=("domcontentloaded", "load", "networkidle"), default="domcontentloaded")
     parser.add_argument("--timeout-ms", type=int, default=60_000)
+
+
+def _add_dialog_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--dialog",
+        choices=("accept", "dismiss"),
+        help="Answer for a confirm/prompt/leave-page dialog the page opens; without it the dialog is "
+        "dismissed and the command fails with DIALOG_DECISION_REQUIRED.",
+    )
+    parser.add_argument("--prompt-text", help="Text for an accepted prompt (default: the prompt's default value).")
 
 
 def _add_optional_output(parser: argparse.ArgumentParser) -> None:
@@ -141,6 +153,8 @@ async def execute(args: argparse.Namespace) -> Any:
             url=args.url,
             wait_until=args.wait_until,
             timeout_ms=args.timeout_ms,
+            dialog=args.dialog,
+            prompt_text=args.prompt_text,
         )
     if command == "read-page":
         return await app.read_page(
@@ -174,6 +188,8 @@ async def execute(args: argparse.Namespace) -> Any:
             arg=arg,
             output_file=args.output_file,
             overwrite=args.overwrite,
+            dialog=args.dialog,
+            prompt_text=args.prompt_text,
         )
     if command == "start-recording":
         return await app.start_recording(

@@ -90,6 +90,7 @@ def test_bundle_and_package_publish_only_the_generic_entrypoints() -> None:
         "__init__.py",
         "config.py",
         "chrome_launcher.py",
+        "dialogs.py",
         "session.py",
     }
     assert not (PROJECT_ROOT / "src" / "browser_automation" / "runtime.py").exists()

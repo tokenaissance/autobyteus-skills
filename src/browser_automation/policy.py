@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from browser_automation.errors import BrowserError, configuration_error, invalid_argument
 from browser_automation.json_codec import StrictJsonError, dumps_strict
+from browser_automation.runtime.dialogs import DialogDecision
 
 MIN_TIMEOUT_MS = 1
 MAX_TIMEOUT_MS = 300_000
@@ -64,6 +65,27 @@ def validate_matcher(value: str | None, *, name: str) -> str:
     if len(normalized) > MAX_MATCHER_LENGTH:
         raise invalid_argument(f"{name} is too long.", **{name: normalized})
     return normalized
+
+
+MAX_PROMPT_TEXT_LENGTH = 10_000
+
+
+def validate_dialog_option(dialog: str | None, prompt_text: str | None) -> DialogDecision | None:
+    """The agent's decision for dialogs its action raises: accept or dismiss, prompt text only with accept."""
+
+    if dialog is None:
+        if prompt_text is not None:
+            raise invalid_argument("prompt_text requires dialog=accept.")
+        return None
+    answer = dialog.strip().lower() if isinstance(dialog, str) else dialog
+    if answer not in ("accept", "dismiss"):
+        raise invalid_argument("dialog must be one of: accept, dismiss.", dialog=dialog)
+    if prompt_text is not None:
+        if answer != "accept":
+            raise invalid_argument("prompt_text requires dialog=accept.")
+        if not isinstance(prompt_text, str) or len(prompt_text) > MAX_PROMPT_TEXT_LENGTH:
+            raise invalid_argument(f"prompt_text must be text of at most {MAX_PROMPT_TEXT_LENGTH} characters.")
+    return DialogDecision(answer=answer, prompt_text=prompt_text)
 
 
 def validate_script(script: str) -> str:

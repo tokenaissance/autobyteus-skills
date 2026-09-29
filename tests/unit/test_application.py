@@ -11,6 +11,7 @@ from browser_automation.application import BrowserApplication
 from browser_automation.errors import BrowserError
 from browser_automation.json_codec import dumps_strict, loads_strict
 from browser_automation.policy import ArtifactPolicy
+from browser_automation.runtime.dialogs import DialogHandling
 
 
 class FakeResponse:
@@ -84,9 +85,10 @@ class FakeContext:
 
 
 class FakeSession:
-    def __init__(self, context: FakeContext) -> None:
+    def __init__(self, context: FakeContext, dialogs: DialogHandling | None = None) -> None:
         self.context = context
         self.browser = type("Browser", (), {"contexts": [context]})()
+        self.dialogs = dialogs or DialogHandling()
 
     async def target_id_for_page(self, page: FakePage) -> str:
         return page.target_id
@@ -105,6 +107,16 @@ class FakeSession:
 
         raise tab_not_found(tab_id)
 
+    async def resolve_target(self, tab_id: str) -> FakePage:
+        page = await self.resolve_page(tab_id)
+        self.dialogs.set_target(page, tab_id)
+        return page
+
+    async def open_target(self) -> tuple[FakePage, str]:
+        page = await self.context.new_page()
+        self.dialogs.set_target(page, page.target_id)
+        return page, page.target_id
+
 
 class FakeRuntime:
     endpoint = "http://localhost:9222"
@@ -113,8 +125,8 @@ class FakeRuntime:
         self.context = FakeContext()
 
     @asynccontextmanager
-    async def session(self):
-        yield FakeSession(self.context)
+    async def session(self, dialog_decision=None):
+        yield FakeSession(self.context, DialogHandling(dialog_decision))
 
 
 @pytest.mark.anyio

@@ -54,6 +54,10 @@ class FakeContext:
     def __init__(self) -> None:
         self.pages = [FakePage()]
         self.cdp_session: FakeCdpSession | None = None
+        self.listeners: list[tuple[str, Any]] = []
+
+    def on(self, event: str, handler: Any) -> None:
+        self.listeners.append((event, handler))
 
     async def new_cdp_session(self, _page: FakePage) -> FakeCdpSession:
         self.cdp_session = FakeCdpSession("opaque-target-id")

@@ -1,6 +1,8 @@
-"""Transport-neutral result contracts for browser operations."""
+"""Transport-neutral result contracts for browser operations.
 
-from __future__ import annotations
+No postponed annotations here: `NotRequired` keys must stay visible to `TypedDict` (and MCP schemas).
+`dialogs` is also nullable because FastMCP serializes an absent optional key as null; the CLI omits it.
+"""
 
 from typing import Any, Literal, NotRequired, TypedDict
 
@@ -13,6 +15,21 @@ class TabSummary(TypedDict):
     tab_id: str
     url: str
     title: str | None
+
+
+class DialogReportPayload(TypedDict):
+    """A page dialog the operation's own tab raised, and what happened to it."""
+
+    tab_id: str
+    type: Literal["alert", "confirm", "prompt", "beforeunload"]
+    message: str
+    default_value: str
+    outcome: Literal["closed", "accepted", "dismissed"]
+    decided_by: Literal["agent", "unblock"] | None
+
+
+class OpenTabResult(TabSummary):
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class HealthCheckResult(TypedDict):
@@ -29,6 +46,7 @@ class ListTabsResult(TypedDict):
 class CloseTabResult(TypedDict):
     tab_id: str
     closed: bool
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class NavigateResult(TypedDict):
@@ -36,6 +54,7 @@ class NavigateResult(TypedDict):
     url: str
     ok: bool
     status: int | None
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class ArtifactResult(TypedDict):
@@ -49,6 +68,7 @@ class ReadPageInlineResult(TypedDict):
     url: str
     output_mode: Literal["inline"]
     content: str
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class ReadPageArtifactResult(TypedDict):
@@ -56,6 +76,7 @@ class ReadPageArtifactResult(TypedDict):
     url: str
     output_mode: Literal["artifact"]
     artifact: ArtifactResult
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class BoundingBox(TypedDict):
@@ -86,6 +107,7 @@ class DomSnapshotInlineResult(TypedDict):
     total_candidates: int
     returned_elements: int
     truncated: bool
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class DomSnapshotArtifactResult(TypedDict):
@@ -93,6 +115,7 @@ class DomSnapshotArtifactResult(TypedDict):
     url: str
     output_mode: Literal["artifact"]
     artifact: ArtifactResult
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class RunScriptInlineResult(TypedDict):
@@ -100,6 +123,7 @@ class RunScriptInlineResult(TypedDict):
     url: str
     output_mode: Literal["inline"]
     result: Any
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class RunScriptArtifactResult(TypedDict):
@@ -107,12 +131,14 @@ class RunScriptArtifactResult(TypedDict):
     url: str
     output_mode: Literal["artifact"]
     artifact: ArtifactResult
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class ScreenshotResult(TypedDict):
     tab_id: str
     url: str
     artifact: ArtifactResult
+    dialogs: NotRequired[list[DialogReportPayload] | None]
 
 
 class StartRecordingResult(TypedDict):

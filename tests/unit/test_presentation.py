@@ -9,6 +9,7 @@ import pytest
 from browser_automation.application import BrowserApplication
 from browser_automation.errors import BrowserError
 from browser_automation.policy import ArtifactPolicy
+from browser_automation.runtime.dialogs import DialogHandling
 from browser_automation.presentation import HELPER_VERSION, helper_source, script_uses_helper
 
 
@@ -40,13 +41,16 @@ class OnePageRuntime:
         self.sessions = 0
 
     @asynccontextmanager
-    async def session(self):
+    async def session(self, dialog_decision=None):
         self.sessions += 1
         page = self.page
 
         class Session:
-            async def resolve_page(self, tab_id: str) -> RecordingPage:
+            dialogs = DialogHandling(dialog_decision)
+
+            async def resolve_target(self, tab_id: str) -> RecordingPage:
                 assert tab_id == "T1"
+                self.dialogs.set_target(page, tab_id)
                 return page
 
         yield Session()

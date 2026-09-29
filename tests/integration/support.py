@@ -157,7 +157,8 @@ def start_chrome(root: Path) -> LiveChrome:
     process = subprocess.Popen(
         [
             str(executable),
-            "--headless=new",
+            # BROWSER_AUTOMATION_TEST_HEADFUL=1 runs the suite against a visible Chrome window.
+            *([] if os.environ.get("BROWSER_AUTOMATION_TEST_HEADFUL") == "1" else ["--headless=new"]),
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-background-networking",

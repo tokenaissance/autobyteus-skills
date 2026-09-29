@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
@@ -13,6 +14,7 @@ from browser_automation.contracts import (
     HealthCheckResult,
     ListTabsResult,
     NavigateResult,
+    OpenTabResult,
     ReadPageResult,
     RunScriptResult,
     ScreenshotResult,
@@ -21,11 +23,17 @@ from browser_automation.contracts import (
     TabSummary,
 )
 from browser_automation.dom_snapshot import DOM_SNAPSHOT_SCRIPT, normalize_snapshot
-from browser_automation.errors import BrowserError, browser_operation_failed, invalid_argument
+from browser_automation.errors import (
+    BrowserError,
+    browser_operation_failed,
+    dialog_decision_required,
+    invalid_argument,
+)
 from browser_automation.json_codec import StrictJsonError, dumps_strict
 from browser_automation.policy import (
     ArtifactPolicy,
     validate_choice,
+    validate_dialog_option,
     validate_matcher,
     validate_tab_id,
     validate_timeout,
@@ -33,12 +41,14 @@ from browser_automation.policy import (
 )
 from browser_automation.presentation import ensure_installed, script_uses_helper
 from browser_automation.recording import RecordingService
-from browser_automation.runtime import BrowserRuntime
+from browser_automation.runtime import BrowserRuntime, BrowserSession
+from browser_automation.runtime.dialogs import DialogDecision, DialogHandling
 from browser_automation.script import normalize_script
 
 WAIT_UNTIL_VALUES = ("domcontentloaded", "load", "networkidle")
 CLEANING_MODES = ("raw", "text", "thorough")
 IMAGE_FORMATS = ("png", "jpeg")
+ResultT = TypeVar("ResultT")
 MIN_RECORDING_FPS = 1
 MAX_RECORDING_FPS = 60
 
@@ -123,15 +133,15 @@ class BrowserApplication:
         url: str | None = None,
         wait_until: str = "domcontentloaded",
         timeout_ms: int = 60_000,
-    ) -> TabSummary:
+    ) -> OpenTabResult:
         target_url = validate_url(url) if url is not None else None
         wait_mode = validate_choice(wait_until, name="wait_until", allowed=WAIT_UNTIL_VALUES)
         timeout = validate_timeout(timeout_ms)
 
-        async with self._runtime.session() as session:
+        async def work(session: BrowserSession) -> OpenTabResult:
             page = None
             try:
-                page = await session.context.new_page()
+                page, _tab_id = await session.open_target()
                 if target_url:
                     await page.goto(target_url, wait_until=wait_mode, timeout=timeout)
                 return await session.summarize_page(page)
@@ -153,16 +163,18 @@ class BrowserApplication:
                 if page is not None and not page.is_closed():
                     await page.close()
                 raise browser_operation_failed("The tab could not be opened.") from exc
+        return await self._tab_operation(work, dialog_decision=None, can_decide=False)
 
     async def close_tab(self, *, tab_id: str) -> CloseTabResult:
         target_id = validate_tab_id(tab_id)
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> CloseTabResult:
+            page = await session.resolve_target(target_id)
             try:
                 await page.close()
             except Exception as exc:
                 raise browser_operation_failed("The tab could not be closed.") from exc
             return {"tab_id": target_id, "closed": True}
+        return await self._tab_operation(work, dialog_decision=None, can_decide=False)
 
     async def navigate(
         self,
@@ -171,13 +183,16 @@ class BrowserApplication:
         url: str,
         wait_until: str = "domcontentloaded",
         timeout_ms: int = 60_000,
+        dialog: str | None = None,
+        prompt_text: str | None = None,
     ) -> NavigateResult:
         target_id = validate_tab_id(tab_id)
+        decision = validate_dialog_option(dialog, prompt_text)
         target_url = validate_url(url)
         wait_mode = validate_choice(wait_until, name="wait_until", allowed=WAIT_UNTIL_VALUES)
         timeout = validate_timeout(timeout_ms)
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> NavigateResult:
+            page = await session.resolve_target(target_id)
             try:
                 response = await page.goto(target_url, wait_until=wait_mode, timeout=timeout)
             except PlaywrightTimeoutError as exc:
@@ -196,6 +211,7 @@ class BrowserApplication:
                 "ok": bool(response and response.ok),
                 "status": response.status if response else None,
             }
+        return await self._tab_operation(work, dialog_decision=decision, can_decide=True)
 
     async def read_page(
         self,
@@ -207,8 +223,8 @@ class BrowserApplication:
     ) -> ReadPageResult:
         target_id = validate_tab_id(tab_id)
         mode = validate_choice(cleaning_mode, name="cleaning_mode", allowed=CLEANING_MODES)
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> ReadPageResult:
+            page = await session.resolve_target(target_id)
             try:
                 content = clean_html(await page.content(), mode)
             except Exception as exc:
@@ -233,6 +249,7 @@ class BrowserApplication:
                 "output_mode": "artifact",
                 "artifact": artifact,
             }
+        return await self._tab_operation(work, dialog_decision=None, can_decide=False)
 
     async def screenshot(
         self,
@@ -256,8 +273,8 @@ class BrowserApplication:
                 image_format=output_format,
             )
 
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> ScreenshotResult:
+            page = await session.resolve_target(target_id)
             temporary = self._artifacts.temporary_sibling(output)
             try:
                 await page.screenshot(path=str(temporary), full_page=full_page, type=output_format)
@@ -276,6 +293,7 @@ class BrowserApplication:
                     media_type="image/png" if output_format == "png" else "image/jpeg",
                 ),
             }
+        return await self._tab_operation(work, dialog_decision=None, can_decide=False)
 
     async def dom_snapshot(
         self,
@@ -293,8 +311,8 @@ class BrowserApplication:
         if isinstance(max_elements, bool) or not 1 <= max_elements <= 2_000:
             raise invalid_argument("max_elements must be in range 1..2000.", max_elements=max_elements)
 
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> DomSnapshotResult:
+            page = await session.resolve_target(target_id)
             try:
                 raw = await page.evaluate(
                     DOM_SNAPSHOT_SCRIPT,
@@ -326,6 +344,7 @@ class BrowserApplication:
                 "output_mode": "artifact",
                 "artifact": artifact,
             }
+        return await self._tab_operation(work, dialog_decision=None, can_decide=False)
 
     async def run_script(
         self,
@@ -335,15 +354,18 @@ class BrowserApplication:
         arg: Any | None = None,
         output_file: str | None = None,
         overwrite: bool = False,
+        dialog: str | None = None,
+        prompt_text: str | None = None,
     ) -> RunScriptResult:
         target_id = validate_tab_id(tab_id)
+        decision = validate_dialog_option(dialog, prompt_text)
         normalized = normalize_script(script)
         try:
             dumps_strict(arg)
         except StrictJsonError as exc:
             raise invalid_argument("The script argument must be strict finite JSON.") from exc
-        async with self._runtime.session() as session:
-            page = await session.resolve_page(target_id)
+        async def work(session: BrowserSession) -> RunScriptResult:
+            page = await session.resolve_target(target_id)
             if script_uses_helper(normalized):
                 # Same session as the script: install (or keep) the presentation helper first.
                 try:
@@ -394,6 +416,7 @@ class BrowserApplication:
                 "output_mode": "artifact",
                 "artifact": artifact,
             }
+        return await self._tab_operation(work, dialog_decision=decision, can_decide=True)
 
     async def start_recording(
         self,
@@ -436,6 +459,34 @@ class BrowserApplication:
 
         target_id = validate_tab_id(tab_id)
         return await self._recordings.stop(port=self._runtime.config().port, tab_id=target_id)
+
+    async def _tab_operation(
+        self,
+        work: Callable[[BrowserSession], Awaitable[ResultT]],
+        *,
+        dialog_decision: DialogDecision | None,
+        can_decide: bool,
+    ) -> ResultT:
+        """Run one tab operation; report its own tab's dialogs or require a decision for them."""
+
+        dialogs: DialogHandling | None = None
+        try:
+            async with self._runtime.session(dialog_decision) as session:
+                dialogs = session.dialogs
+                result = await work(session)
+        except BrowserError as exc:
+            # A dialog dismissed only to unblock the page explains any failure it caused.
+            if dialogs is not None and dialogs.decision_required:
+                reports = [report.to_payload() for report in dialogs.reports]
+                raise dialog_decision_required(reports, can_decide=can_decide) from exc
+            raise
+        # Read after disconnect so a dialog raised after the work, before disconnect, is included.
+        reports = [report.to_payload() for report in dialogs.reports]
+        if dialogs.decision_required:
+            raise dialog_decision_required(reports, can_decide=can_decide)
+        if reports:
+            return {**result, "dialogs": reports}  # type: ignore[return-value]
+        return result
 
     def read_input_text(self, relative_path: str) -> str:
         """Read a CLI-requested source file through the authoritative workspace policy."""

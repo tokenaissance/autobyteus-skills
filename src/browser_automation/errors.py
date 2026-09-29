@@ -73,6 +73,27 @@ def browser_operation_failed(message: str = "The browser operation failed.") -> 
     return BrowserError("BROWSER_OPERATION_FAILED", message, retryable=True, exit_status=5)
 
 
+def dialog_decision_required(dialogs: list[dict[str, Any]], *, can_decide: bool) -> BrowserError:
+    """The operation's own page raised a dialog without a decision; it was dismissed to unblock it."""
+
+    first = next(report for report in dialogs if report["decided_by"] == "unblock")
+    remedy = (
+        "Re-run the action with --dialog accept or --dialog dismiss (MCP: dialog), plus --prompt-text "
+        "(MCP: prompt_text) for prompts."
+        if can_decide
+        else "Repeat the action that raises it through run-script or navigate with a decision "
+        "(--dialog accept or --dialog dismiss)."
+    )
+    return BrowserError(
+        "DIALOG_DECISION_REQUIRED",
+        f"The page opened a {first['type']} dialog: \"{first['message']}\". It was dismissed only to "
+        f"unblock the page. {remedy}",
+        retryable=False,
+        exit_status=5,
+        details={"tab_id": first["tab_id"], "dialogs": dialogs},
+    )
+
+
 def page_blocked(endpoint: str, timeout_seconds: float, targets: list[dict[str, Any]]) -> BrowserError:
     return BrowserError(
         "PAGE_BLOCKED",

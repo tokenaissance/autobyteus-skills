@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from browser_automation.application import BrowserApplication
-from browser_automation.contracts import TabSummary
+from browser_automation.contracts import OpenTabResult
 
 
 def register(server: FastMCP, application: BrowserApplication) -> None:
@@ -12,5 +12,5 @@ def register(server: FastMCP, application: BrowserApplication) -> None:
         url: str | None = None,
         wait_until: str = "domcontentloaded",
         timeout_ms: int = 60_000,
-    ) -> TabSummary:
+    ) -> OpenTabResult:
         return await invoke(application.open_tab(url=url, wait_until=wait_until, timeout_ms=timeout_ms))

@@ -53,8 +53,20 @@ Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, a
 
 - If the tab or app closes first, the recording finalizes itself; a later `stop-recording` returns it with `end_reason` `target_closed`.
 - A recording keeps running if the agent run that started it is cancelled. Any later process can finish it with `stop-recording` for the same tab and endpoint, and stopping the app or closing the tab finalizes it.
-- Page dialogs (`alert`/`confirm`) raised while recording stay open for the app or a human to answer. While such a dialog is open, other commands against that browser fail with `PAGE_BLOCKED` until it is answered.
+- A dialog raised during a command is handled by that command (see "Page dialogs"). One raised between commands stays open for the app or a person; until it is answered, commands against that browser fail with `PAGE_BLOCKED`.
 - Recording the user's own Chrome while its window is covered or minimized may freeze frames; isolated AutoByteus instances started by `pnpm isolated-app` keep rendering while covered.
+
+## Page dialogs
+
+Native page dialogs (`alert`, `confirm`, `prompt`, "Leave site?") raised by the page of the tab a command works on are handled by that command:
+
+- Give the decision with the action: `run-script` or `navigate` with `--dialog accept` or `--dialog dismiss` (MCP: `dialog`), plus `--prompt-text` (MCP: `prompt_text`) for a prompt. An accepted prompt without text gets its default value. Pass it whenever the action is expected to ask, for example `run-script --tab-id "$TAB_ID" --script '__abDemo.click({text: "Delete"})' --dialog accept`.
+- Without a decision, a `confirm`/`prompt`/"Leave site?" is dismissed only so the page is not left blocked, and the command fails with `DIALOG_DECISION_REQUIRED` carrying the dialog's type and message. Decide, then repeat the action with `--dialog`. Side effects that happened before the dialog may repeat.
+- An `alert` is closed and reported; it needs no decision.
+- Successful results list the command's own dialogs in `dialogs` (`type`, `message`, `default_value`, `outcome`, `decided_by`); without dialogs results are unchanged (the MCP result carries `dialogs: null`).
+- Commands without the option (`open-tab`, `read-page`, `screenshot`, `dom-snapshot`) fail with `DIALOG_DECISION_REQUIRED` if their page asks; trigger that page action through `run-script` or `navigate` with a decision instead.
+- Dialogs in other tabs are never answered or reported. A dialog left open (another tab, or raised between commands) must be answered on screen: by the user, or with OS-level tools such as computer-use on Linux. Until then commands fail with `PAGE_BLOCKED`. Headful Chrome and Electron keep such dialogs open; headless Chrome may cancel another tab's dialog when a command disconnects, and it has no window to answer in.
+- Chrome shows "Leave site?" only for pages the user has interacted with. `close-tab` closes without that prompt.
 
 ## Output and recovery
 
@@ -73,6 +85,7 @@ Treat stderr as diagnostics, not machine output. Recover by code:
 - `INVALID_ARGUMENT`, `INVALID_URL`, `ARTIFACT_PATH_REJECTED`, `ARTIFACT_EXISTS`: correct the request; use a workspace-relative path and explicit `--overwrite` only when replacement is intended.
 - `NAVIGATION_TIMEOUT`, `BROWSER_OPERATION_FAILED`: observe current tab state before deciding whether retry is safe.
 - `SCRIPT_FAILED`: simplify/fix the script or return a JSON-serializable value. `details.detail` `presentation_helper_install_failed` means the page refused the helper.
+- `DIALOG_DECISION_REQUIRED`: the page asked a question (`details.dialogs`); it was dismissed to unblock. Repeat the action through `run-script`/`navigate` with `--dialog accept` or `--dialog dismiss`.
 - `RECORDING_DEPENDENCY_MISSING`: install `ffmpeg` or set `BROWSER_AUTOMATION_FFMPEG_BIN`.
 - `RECORDING_ALREADY_ACTIVE`: stop the running recording of that tab first. `RECORDING_NOT_ACTIVE`: nothing to stop for that tab.
 - `RECORDING_FAILED`: read `details` (`reason`, `partial_file`, `log_file`); a partial MP4 is kept when one was written.

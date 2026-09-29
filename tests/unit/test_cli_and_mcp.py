@@ -88,6 +88,8 @@ def test_cli_run_script_sources_map_to_the_same_application_arguments(
         "arg": expected_arg,
         "output_file": None,
         "overwrite": False,
+        "dialog": None,
+        "prompt_text": None,
     }
 
 
