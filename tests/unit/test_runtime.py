@@ -852,3 +852,72 @@ async def test_second_caller_stays_before_probe_connect_until_pending_owner_is_t
     if owner_outcome == "promote":
         finish_owner_session.set()
         await owner_task
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [(None, False), ("", False), ("0", False), ("no", False), ("1", True), ("TRUE", True), (" yes ", True)],
+)
+def test_runtime_config_reads_attach_only(raw: str | None, expected: bool) -> None:
+    environment = {} if raw is None else {"BROWSER_AUTOMATION_ATTACH_ONLY": raw}
+    assert BrowserRuntimeConfig.from_environment(environment).attach_only is expected
+
+
+def test_runtime_config_rejects_unknown_attach_only_value() -> None:
+    with pytest.raises(BrowserError) as raised:
+        BrowserRuntimeConfig.from_environment({"BROWSER_AUTOMATION_ATTACH_ONLY": "maybe"})
+    assert raised.value.code == "CONFIGURATION_ERROR"
+
+
+@pytest.mark.anyio
+async def test_attach_only_launcher_attaches_to_a_listening_endpoint(tmp_path: Path) -> None:
+    config = replace(runtime_config(tmp_path, port=49_171), attach_only=True)
+
+    async def probe(_config: BrowserRuntimeConfig) -> bool:
+        return True
+
+    def forbidden_spawn(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("attach-only must never launch a browser")
+
+    availability = await ChromeLauncher(
+        config,
+        probe=probe,
+        process_factory=forbidden_spawn,
+        gate_directory=tmp_path / "gates",
+    ).ensure_available()
+    assert availability.state is ChromeAvailabilityState.DURABLE_EXISTING
+
+
+@pytest.mark.anyio
+async def test_attach_only_launcher_reports_unavailable_and_never_launches(tmp_path: Path) -> None:
+    config = replace(runtime_config(tmp_path, port=49_172), attach_only=True)
+
+    async def probe(_config: BrowserRuntimeConfig) -> bool:
+        return False
+
+    def forbidden_spawn(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("attach-only must never launch a browser")
+
+    def forbidden_resolver(_config: BrowserRuntimeConfig) -> Path:
+        raise AssertionError("attach-only must not resolve a browser executable")
+
+    with pytest.raises(BrowserError) as raised:
+        await ChromeLauncher(
+            config,
+            probe=probe,
+            process_factory=forbidden_spawn,
+            executable_resolver=forbidden_resolver,
+            gate_directory=tmp_path / "gates",
+        ).ensure_available()
+    assert raised.value.code == "BROWSER_UNAVAILABLE"
+    assert raised.value.exit_status == 3
+    assert "http://127.0.0.1:49172" in raised.value.message
+    assert "BROWSER_AUTOMATION_ATTACH_ONLY" in raised.value.message
+    loop = asyncio.get_running_loop()
+    gate = await EstablishmentGate.acquire(
+        port=config.port,
+        deadline=loop.time() + 1,
+        poll_interval=0.005,
+        directory=tmp_path / "gates",
+    )
+    gate.release()

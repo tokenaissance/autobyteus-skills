@@ -273,6 +273,11 @@ class ChromeLauncher:
             if await self._probe_under_gate():
                 gate.release()
                 return ChromeAvailability.durable_existing(self.config)
+            if self.config.attach_only:
+                raise browser_unavailable(
+                    f"Nothing is listening at {self.config.endpoint} and BROWSER_AUTOMATION_ATTACH_ONLY is set, "
+                    "so no browser is launched. Start the browser or app with that remote-debugging port first."
+                )
 
             executable = self._executable_resolver(self.config)
             process = self._spawn(executable)

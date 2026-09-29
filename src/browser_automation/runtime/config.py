@@ -1,4 +1,4 @@
-"""Immutable configuration for the owned local Chrome runtime."""
+"""Immutable configuration for the owned or attached local Chrome runtime."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ class BrowserRuntimeConfig:
     user_data_dir: Path | None
     log_path: Path
     chrome_executable: Path | None
+    attach_only: bool = False
     establishment_timeout_seconds: float = 20.0
     poll_interval_seconds: float = 0.1
     probe_timeout_seconds: float = 1.0
@@ -61,6 +62,7 @@ class BrowserRuntimeConfig:
             user_data_dir=user_data_dir,
             log_path=log_path,
             chrome_executable=chrome_executable,
+            attach_only=_flag(actual.get("BROWSER_AUTOMATION_ATTACH_ONLY"), "BROWSER_AUTOMATION_ATTACH_ONLY"),
         )
 
     @property
@@ -70,6 +72,15 @@ class BrowserRuntimeConfig:
     @property
     def version_endpoint(self) -> str:
         return f"{self.endpoint}/json/version"
+
+
+def _flag(value: str | None, name: str) -> bool:
+    normalized = (value or "").strip().lower()
+    if normalized in {"1", "true", "yes"}:
+        return True
+    if normalized in {"", "0", "false", "no"}:
+        return False
+    raise configuration_error(f"{name} must be one of: 1, true, yes, 0, false, no.")
 
 
 def _nonempty(value: str, name: str) -> str:
