@@ -22,7 +22,11 @@ class BrowserRuntimeConfig:
     log_path: Path
     chrome_executable: Path | None
     attach_only: bool = False
+    # Launching and connecting to a Chrome this runtime starts itself.
     establishment_timeout_seconds: float = 20.0
+    # Connecting to a browser that was already running. A page dialog blocks the attach, so this
+    # bound decides how quickly a blocked browser is reported as PAGE_BLOCKED.
+    connect_timeout_seconds: float = 8.0
     poll_interval_seconds: float = 0.1
     probe_timeout_seconds: float = 1.0
     termination_timeout_seconds: float = 5.0

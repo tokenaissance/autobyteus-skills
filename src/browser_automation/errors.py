@@ -73,6 +73,20 @@ def browser_operation_failed(message: str = "The browser operation failed.") -> 
     return BrowserError("BROWSER_OPERATION_FAILED", message, retryable=True, exit_status=5)
 
 
+def page_blocked(endpoint: str, timeout_seconds: float, targets: list[dict[str, Any]]) -> BrowserError:
+    return BrowserError(
+        "PAGE_BLOCKED",
+        f"The browser at {endpoint} is running but did not accept a connection within "
+        f"{timeout_seconds:g} s. Most likely a page dialog (alert/confirm/prompt/'Leave site?') is "
+        "waiting for an answer: answer it in the window (the user, or OS-level tools such as "
+        "computer-use on Linux). Otherwise a page may be hung. Headless browsers have no window: "
+        "close the tab or restart that browser.",
+        retryable=True,
+        exit_status=3,
+        details={"endpoint": endpoint, "targets": targets},
+    )
+
+
 def recording_dependency_missing(message: str) -> BrowserError:
     return BrowserError("RECORDING_DEPENDENCY_MISSING", message, retryable=False, exit_status=3)
 

@@ -53,7 +53,7 @@ Every call resolves to a JSON value: `{ok: true, action, ...}` or `{ok: false, a
 
 - If the tab or app closes first, the recording finalizes itself; a later `stop-recording` returns it with `end_reason` `target_closed`.
 - A recording keeps running if the agent run that started it is cancelled. Any later process can finish it with `stop-recording` for the same tab and endpoint, and stopping the app or closing the tab finalizes it.
-- Page dialogs (`alert`/`confirm`) raised while recording stay open for the app or a human to answer. While such a dialog is open, other commands against that browser wait until it is answered.
+- Page dialogs (`alert`/`confirm`) raised while recording stay open for the app or a human to answer. While such a dialog is open, other commands against that browser fail with `PAGE_BLOCKED` until it is answered.
 - Recording the user's own Chrome while its window is covered or minimized may freeze frames; isolated AutoByteus instances started by `pnpm isolated-app` keep rendering while covered.
 
 ## Output and recovery
@@ -66,6 +66,7 @@ Except for help, parse stdout as exactly one JSON value:
 Treat stderr as diagnostics, not machine output. Recover by code:
 
 - `BOOTSTRAP_FAILED`, `CONFIGURATION_ERROR`, `BROWSER_UNAVAILABLE`: check the diagnostic and retry only when the environment/browser condition can change.
+- `PAGE_BLOCKED`: the browser is running but refused the connection within 8 s, most likely because a page dialog (alert/confirm/prompt/"Leave site?") waits for an answer, otherwise a hung page. `details.targets` lists the open tabs. Have the dialog answered in the window (by the user, or with OS-level tools such as computer-use on Linux), then retry. A headless browser has no window: close that tab or restart the browser.
 - `TAB_NOT_FOUND`: list tabs again; the target was closed or replaced.
 - `NO_TAB_MATCH`: refine or correct discovery criteria.
 - `AMBIGUOUS_TAB_MATCH`: add a more specific URL/title matcher.

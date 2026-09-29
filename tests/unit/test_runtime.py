@@ -921,3 +921,115 @@ async def test_attach_only_launcher_reports_unavailable_and_never_launches(tmp_p
         directory=tmp_path / "gates",
     )
     gate.release()
+
+
+def test_runtime_config_bounds_existing_browser_connects_separately() -> None:
+    config = BrowserRuntimeConfig.from_environment({})
+    assert config.connect_timeout_seconds == 8.0
+    assert config.establishment_timeout_seconds == 20.0
+
+
+class DurableExistingLauncher:
+    def __init__(self, config: BrowserRuntimeConfig) -> None:
+        self._config = config
+
+    async def ensure_available(self) -> ChromeAvailability:
+        return ChromeAvailability.durable_existing(self._config)
+
+
+def hanging_runtime(
+    config: BrowserRuntimeConfig, *, endpoint_answers: bool
+) -> tuple[BrowserRuntime, FakePlaywright, list[str]]:
+    """Runtime whose CDP attach never completes, like a browser whose page shows a dialog."""
+
+    async def hang(_endpoint: str) -> FakeBrowser:
+        await asyncio.sleep(3600)
+        raise AssertionError("unreachable")
+
+    playwright = FakePlaywright(hang)
+    calls: list[str] = []
+
+    async def probe(_config: BrowserRuntimeConfig) -> bool:
+        calls.append("probe")
+        return endpoint_answers
+
+    async def lister(_config: BrowserRuntimeConfig) -> list[dict[str, Any]]:
+        calls.append("list")
+        return [{"tab_id": "T1", "url": "https://app.example/", "title": "App"}]
+
+    runtime = BrowserRuntime(
+        config_factory=lambda: config,
+        launcher_factory=DurableExistingLauncher,
+        playwright_factory=lambda: FakePlaywrightStarter(playwright),
+        endpoint_probe=probe,
+        target_lister=lister,
+    )
+    return runtime, playwright, calls
+
+
+@pytest.mark.anyio
+async def test_blocked_existing_browser_is_page_blocked_within_the_connect_bound(tmp_path: Path) -> None:
+    config = replace(runtime_config(tmp_path), connect_timeout_seconds=0.05, establishment_timeout_seconds=5.0)
+    runtime, playwright, calls = hanging_runtime(config, endpoint_answers=True)
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    with pytest.raises(BrowserError) as raised:
+        async with runtime.session():
+            raise AssertionError("a blocked browser must not yield a session")
+
+    assert loop.time() - started < 1.0  # the 5 s establishment bound was not used
+    error = raised.value
+    assert error.code == "PAGE_BLOCKED"
+    assert error.exit_status == 3 and error.retryable is True
+    assert "dialog" in error.message and "hung" in error.message and "Headless" in error.message
+    assert error.details == {
+        "endpoint": config.endpoint,
+        "targets": [{"tab_id": "T1", "url": "https://app.example/", "title": "App"}],
+    }
+    assert calls == ["probe", "list"]
+    assert playwright.stopped
+
+
+@pytest.mark.anyio
+async def test_unreachable_endpoint_after_connect_timeout_stays_browser_unavailable(tmp_path: Path) -> None:
+    config = replace(runtime_config(tmp_path), connect_timeout_seconds=0.05)
+    runtime, _playwright, calls = hanging_runtime(config, endpoint_answers=False)
+
+    with pytest.raises(BrowserError) as raised:
+        async with runtime.session():
+            raise AssertionError("unreachable")
+
+    assert raised.value.code == "BROWSER_UNAVAILABLE"
+    assert calls == ["probe"]
+
+
+@pytest.mark.anyio
+async def test_owned_launch_keeps_the_establishment_bound_and_never_reports_page_blocked(tmp_path: Path) -> None:
+    config = replace(runtime_config(tmp_path), connect_timeout_seconds=0.01, establishment_timeout_seconds=0.2)
+    gate = await EstablishmentGate.acquire(
+        port=config.port,
+        deadline=asyncio.get_running_loop().time() + 1,
+        poll_interval=0.005,
+        directory=tmp_path / "gates",
+    )
+    availability = ChromeAvailability.pending_owned(
+        config=config, gate=gate, process=FakeProcess(), termination_runner=lambda *_args: None
+    )
+
+    class PendingLauncher:
+        async def ensure_available(self) -> ChromeAvailability:
+            return availability
+
+    runtime, _playwright, calls = hanging_runtime(config, endpoint_answers=True)
+    runtime._launcher_factory = lambda _config: PendingLauncher()  # type: ignore[attr-defined]
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    with pytest.raises(BrowserError) as raised:
+        async with runtime.session():
+            raise AssertionError("unreachable")
+
+    assert raised.value.code == "BROWSER_UNAVAILABLE"
+    assert loop.time() - started >= 0.2
+    assert calls == []
