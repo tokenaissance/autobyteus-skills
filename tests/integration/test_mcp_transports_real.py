@@ -303,3 +303,71 @@ async def test_stdio_mcp_attach_only_reports_unavailable_and_never_launches_a_br
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.settimeout(0.2)
         assert probe.connect_ex(("127.0.0.1", port)) != 0
+
+
+@pytest.mark.anyio
+@pytest.mark.real_chrome
+async def test_stdio_mcp_page_dialogs_follow_the_agent_decision_and_are_reported(
+    live_chrome: LiveChrome,
+    test_site: LocalSite,
+    tmp_path: Path,
+) -> None:
+    environment = live_chrome.environment(tmp_path, BROWSER_MCP_LOG_DIR=str(tmp_path / "mcp-logs"))
+
+    async def page_value(session: ClientSession, tab_id: str, expression: str):
+        evaluated = await session.call_tool("run_script", {"tab_id": tab_id, "script": expression})
+        assert not evaluated.isError, evaluated.content
+        return structured_result(evaluated)["result"]
+
+    async with stdio_mcp_session(environment, tmp_path, "dialogs") as session:
+        tools = {tool.name: tool for tool in (await session.list_tools()).tools}
+        assert set(tools) == EXPECTED_TOOLS
+        assert {"dialog", "prompt_text"} <= set(tools["run_script"].inputSchema["properties"])
+        opened = await session.call_tool("open_tab", {"url": test_site.url("/demo")})
+        assert not opened.isError, opened.content
+        tab_id = structured_result(opened)["tab_id"]
+
+        # No dialog: nothing is reported (the additive field is absent or null, depending on the tool's schema).
+        plain = await session.call_tool("run_script", {"tab_id": tab_id, "script": "1 + 1"})
+        assert structured_result(plain)["result"] == 2
+        assert structured_result(plain).get("dialogs") is None
+        read = await session.call_tool("read_page", {"tab_id": tab_id, "cleaning_mode": "text"})
+        assert not read.isError, read.content
+        assert structured_result(read).get("dialogs") is None
+
+        # No decision: dismissed only to unblock, reported, and the tool fails asking for a decision.
+        undecided = await session.call_tool("run_script", {"tab_id": tab_id, "script": "askDelete()"})
+        message = error_text(undecided)
+        assert "DIALOG_DECISION_REQUIRED" in message and "Delete this item?" in message
+        assert await page_value(session, tab_id, "window.answer") is False
+
+        dismissed = await session.call_tool("run_script", {"tab_id": tab_id, "script": "askDelete()", "dialog": "dismiss"})
+        assert not dismissed.isError, dismissed.content
+        assert structured_result(dismissed)["result"] is False
+        assert structured_result(dismissed)["dialogs"] == [{
+            "tab_id": tab_id, "type": "confirm", "message": "Delete this item?", "default_value": "",
+            "outcome": "dismissed", "decided_by": "agent",
+        }]
+
+        accepted = await session.call_tool("run_script", {"tab_id": tab_id, "script": "askDelete()", "dialog": "accept"})
+        assert structured_result(accepted)["result"] is True
+        assert structured_result(accepted)["dialogs"][0]["outcome"] == "accepted"
+
+        named = await session.call_tool("run_script", {
+            "tab_id": tab_id, "script": "askName()", "dialog": "accept", "prompt_text": "Ada",
+        })
+        assert structured_result(named)["result"] == "Ada"
+        assert structured_result(named)["dialogs"][0]["default_value"] == "Default Name"
+
+        alerted = await session.call_tool("run_script", {"tab_id": tab_id, "script": "notify()"})
+        assert not alerted.isError, alerted.content
+        assert structured_result(alerted)["dialogs"][0]["outcome"] == "closed"
+        assert structured_result(alerted)["dialogs"][0]["decided_by"] is None
+
+        invalid = await session.call_tool("run_script", {
+            "tab_id": tab_id, "script": "1", "dialog": "dismiss", "prompt_text": "x",
+        })
+        assert "INVALID_ARGUMENT" in error_text(invalid)
+
+        closed = await session.call_tool("close_tab", {"tab_id": tab_id})
+        assert not closed.isError, closed.content
