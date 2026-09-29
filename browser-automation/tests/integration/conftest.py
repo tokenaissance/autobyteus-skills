@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os
+from pathlib import Path
+import threading
+from urllib.parse import parse_qs, urlparse
+
+import pytest
+
+from .support import LiveChrome, start_chrome, terminate_process_group
+
+
+class LocalSite:
+    def __init__(self, server: ThreadingHTTPServer, thread: threading.Thread) -> None:
+        self.server = server
+        self.thread = thread
+
+    @property
+    def origin(self) -> str:
+        return f"http://127.0.0.1:{self.server.server_port}"
+
+    def url(self, path: str) -> str:
+        return f"{self.origin}{path}"
+
+
+DEMO_PAGE = """<!doctype html><html><head><title>Presentation Demo</title></head><body>
+<button id="save" type="button">Save</button>
+<div id="wrapper"><span>Wrapped label</span></div>
+<button class="dup" type="button">Duplicate</button><button class="dup" type="button">Duplicate</button>
+<button type="button" disabled>Disabled action</button>
+<button type="button" aria-label="Close dialog">x</button>
+<input id="agent-name" placeholder="Agent name">
+<textarea id="notes"></textarea>
+<div id="editor" contenteditable="true"></div>
+<select id="runtime"><option value="a">Alpha</option><option value="c">Codex</option></select>
+<div id="hover-target">Hover me</div>
+<div id="scroller" style="height:80px;overflow:auto"><div style="height:1200px">long content</div></div>
+<button id="open-modal" type="button">Open modal</button>
+<button id="bg-cancel" type="button">Cancel</button>
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10">
+  <div style="margin:120px auto;width:300px;background:#fff;padding:20px"><button id="modal-cancel" type="button">Cancel</button></div>
+</div>
+<div style="height:2400px"></div>
+<button id="far" type="button">Far away</button>
+<script>
+window.events = [];
+const log = (entry) => window.events.push(entry);
+document.getElementById('save').addEventListener('click', () => {
+  log('save');
+  setTimeout(() => { const p = document.createElement('p'); p.textContent = 'Saved'; document.body.appendChild(p); }, 300);
+});
+document.querySelectorAll('.dup').forEach((button, index) => button.addEventListener('click', () => log('dup' + index)));
+document.querySelector('[aria-label="Close dialog"]').addEventListener('click', () => log('close'));
+document.getElementById('hover-target').addEventListener('mouseenter', () => log('hover'));
+document.getElementById('agent-name').addEventListener('change', (event) => log('change:' + event.target.value));
+document.getElementById('open-modal').addEventListener('click', () => { document.getElementById('modal').style.display = 'block'; });
+document.getElementById('bg-cancel').addEventListener('click', () => log('bg-cancel'));
+document.getElementById('modal-cancel').addEventListener('click', () => { log('modal-cancel'); document.getElementById('modal').style.display = 'none'; });
+document.getElementById('far').addEventListener('click', () => log('far'));
+document.addEventListener('keydown', (event) => log('key:' + event.key + (event.metaKey ? '+meta' : '')));
+window.askDelete = () => { window.answer = confirm('Delete this item?'); return window.answer; };
+window.askName = () => { window.givenName = prompt('Your name?', 'Default Name'); return window.givenName; };
+window.notify = () => { alert('Saved!'); window.alerted = true; return true; };
+window.addEventListener('beforeunload', (event) => { if (window.guard) { event.preventDefault(); event.returnValue = ''; } });
+</script></body></html>"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        return
+
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+        if parsed.path == "/slow":
+            import time
+
+            time.sleep(float(query.get("delay", ["2"])[0]))
+        token = query.get("token", ["default"])[0]
+        title = query.get("title", ["Browser Automation Integration"])[0]
+        if parsed.path == "/demo":
+            body = DEMO_PAGE
+        elif parsed.path == "/confirm-on-load":
+            body = """<!doctype html><html><head><title>Confirm on load</title></head><body>
+<script>window.loadAnswer = confirm('Continue loading?');</script><p id="loaded">loaded</p></body></html>"""
+        elif parsed.path == "/next":
+            body = f"""<!doctype html><html><head><title>{title}</title></head>
+<body><h1 id="heading">Next Page {token}</h1><a id="back" href="/page">Back</a></body></html>"""
+        else:
+            body = f"""<!doctype html><html><head><title>{title}</title>
+<style>.hidden {{ display:none }}</style></head><body data-token="{token}">
+<h1 id="heading">Integration Page {token}</h1>
+<label for="name">Name</label><input id="name" placeholder="Name">
+<button id="go" type="button" onclick="document.querySelector('#status').textContent='clicked:'+document.querySelector('#name').value">Go</button>
+<p id="status">idle</p><a id="next" href="/next?token={token}">Next</a>
+<script>window.fixtureLoaded = true;</script></body></html>"""
+        payload = body.encode("utf-8")
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if os.environ.get("BROWSER_AUTOMATION_REAL_TESTS") == "1":
+        return
+    skip = pytest.mark.skip(reason="set BROWSER_AUTOMATION_REAL_TESTS=1 to run executable integration coverage")
+    for item in items:
+        if item.get_closest_marker("real_chrome") is not None:
+            item.add_marker(skip)
+
+
+@pytest.fixture(scope="session")
+def test_site() -> LocalSite:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, name="browser-automation-test-site", daemon=True)
+    thread.start()
+    site = LocalSite(server, thread)
+    yield site
+    server.shutdown()
+    server.server_close()
+    thread.join(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def live_chrome(tmp_path_factory: pytest.TempPathFactory) -> LiveChrome:
+    root = tmp_path_factory.mktemp("browser-automation-real")
+    chrome = start_chrome(root)
+    yield chrome
+    terminate_process_group(chrome.process)
+
+
+@pytest.fixture
+def live_environment(live_chrome: LiveChrome, tmp_path: Path) -> dict[str, str]:
+    return live_chrome.environment(tmp_path)

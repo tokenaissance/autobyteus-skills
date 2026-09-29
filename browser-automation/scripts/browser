@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BOOTSTRAP_JSON='{"schema_version":"1","ok":false,"command":"bootstrap","error":{"code":"BOOTSTRAP_FAILED","message":"The bundled browser runtime could not be prepared or started.","retryable":true}}'
+
+bootstrap_failure() {
+  printf '%s\n' "$1" >&2
+  printf '%s\n' "$BOOTSTRAP_JSON"
+  exit 3
+}
+
+CALLER_WORKSPACE="$(pwd -P)" || bootstrap_failure 'browser: caller workspace could not be resolved.'
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" \
+  || bootstrap_failure 'browser: bundled script directory could not be resolved.'
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)" \
+  || bootstrap_failure 'browser: bundled skill directory could not be resolved.'
+
+if [ ! -f "$PROJECT_ROOT/pyproject.toml" ] || [ ! -f "$PROJECT_ROOT/uv.lock" ] || [ ! -f "$PROJECT_ROOT/SKILL.md" ]; then
+  bootstrap_failure 'browser: required bundled runtime files are missing.'
+fi
+
+find_uv() {
+  if [ -n "${UV_BIN:-}" ] && [ -x "$UV_BIN" ]; then
+    printf '%s\n' "$UV_BIN"
+    return 0
+  fi
+  if command -v uv >/dev/null 2>&1; then
+    command -v uv
+    return 0
+  fi
+  for candidate in "${HOME:-}/.local/bin/uv" "${HOME:-}/.cargo/bin/uv" /usr/local/bin/uv /opt/homebrew/bin/uv; do
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! UV_PATH="$(find_uv)"; then
+  bootstrap_failure 'browser: host uv executable was not found.'
+fi
+
+TEMP_ROOT="${TMPDIR:-/tmp}"
+if ! STDOUT_FILE="$(mktemp "$TEMP_ROOT/browser-cli.stdout.XXXXXX")"; then
+  bootstrap_failure 'browser: secure temporary stdout capture could not be created.'
+fi
+if ! READY_FILE="$(mktemp "$TEMP_ROOT/browser-cli.ready.XXXXXX")"; then
+  unlink "$STDOUT_FILE" 2>/dev/null || true
+  printf '%s\n' 'browser: secure readiness file could not be created.' >&2
+  printf '%s\n' "$BOOTSTRAP_JSON"
+  exit 3
+fi
+# shellcheck disable=SC2329 # Invoked indirectly by the EXIT trap.
+cleanup() {
+  unlink "$STDOUT_FILE" 2>/dev/null || true
+  unlink "$READY_FILE" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [ -z "${BROWSER_AUTOMATION_WORKSPACE+x}" ]; then
+  export BROWSER_AUTOMATION_WORKSPACE="$CALLER_WORKSPACE"
+fi
+export BROWSER_AUTOMATION_CLI_READY_FILE="$READY_FILE"
+
+set +e
+"$UV_PATH" --quiet --directory "$PROJECT_ROOT" run --frozen browser "$@" >"$STDOUT_FILE"
+status=$?
+set -e
+
+if grep -Fxq 'browser-cli-ready-v1' "$READY_FILE"; then
+  cat "$STDOUT_FILE"
+  exit "$status"
+fi
+
+cat "$STDOUT_FILE" >&2
+printf '%s\n' "$BOOTSTRAP_JSON"
+exit 3

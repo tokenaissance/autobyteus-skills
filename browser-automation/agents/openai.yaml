@@ -1,0 +1,4 @@
+interface:
+  display_name: "Browser Automation"
+  short_description: "Automate explicit tabs in a live Chrome session"
+  default_prompt: "Use $browser-automation to inspect and operate the relevant Chrome tab safely."
