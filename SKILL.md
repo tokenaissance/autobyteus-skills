@@ -33,7 +33,7 @@ Map script calls directly to operation flags. The normal form is `run-script --t
 
 ## Controlling an app or a fixed browser endpoint
 
-The launcher controls the CDP endpoint on `127.0.0.1` at the port in `CHROME_REMOTE_DEBUGGING_PORT` (default 9222). By default it launches Chrome when nothing listens there. To control something already running, such as an isolated AutoByteus instance started with `pnpm isolated-app start` (control port 9333), pass the port and attach-only mode in the invocation environment, for example `env CHROME_REMOTE_DEBUGGING_PORT=9333 BROWSER_AUTOMATION_ATTACH_ONLY=1 bash "<resolved launcher>" list-tabs`. Attach-only never launches a browser: if nothing listens it fails with `BROWSER_UNAVAILABLE` naming the endpoint. An Electron app window appears as one tab. Its `tab_id` changes when the app restarts, so run `list-tabs` again after a restart.
+The launcher controls the CDP endpoint on `127.0.0.1` at the port in `CHROME_REMOTE_DEBUGGING_PORT` (default 9222). By default it launches Chrome when nothing listens there. To control something already running, such as an isolated AutoByteus instance started with `pnpm isolated-app start` (use the `controlPort` it reports), pass the port and attach-only mode in the invocation environment, for example `env CHROME_REMOTE_DEBUGGING_PORT=<controlPort> BROWSER_AUTOMATION_ATTACH_ONLY=1 bash "<resolved launcher>" list-tabs`. Attach-only never launches a browser: if nothing listens it fails with `BROWSER_UNAVAILABLE` naming the endpoint. An Electron app window appears as one tab. Its `tab_id` changes when the app restarts, so run `list-tabs` again after a restart.
 
 ## Presentation helper (`__abDemo`)
 
