@@ -29,6 +29,7 @@ from browser_automation.policy import (
     validate_timeout,
     validate_url,
 )
+from browser_automation.presentation import ensure_installed, script_uses_helper
 from browser_automation.runtime import BrowserRuntime
 from browser_automation.script import normalize_script
 
@@ -336,6 +337,18 @@ class BrowserApplication:
             raise invalid_argument("The script argument must be strict finite JSON.") from exc
         async with self._runtime.session() as session:
             page = await session.resolve_page(target_id)
+            if script_uses_helper(normalized):
+                # Same session as the script: install (or keep) the presentation helper first.
+                try:
+                    await ensure_installed(page)
+                except Exception as exc:
+                    raise BrowserError(
+                        "SCRIPT_FAILED",
+                        "The presentation helper could not be installed in the page.",
+                        retryable=True,
+                        exit_status=5,
+                        details={"tab_id": target_id, "detail": "presentation_helper_install_failed"},
+                    ) from exc
             try:
                 result = await page.evaluate(normalized, arg)
             except Exception as exc:

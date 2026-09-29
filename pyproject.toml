@@ -32,6 +32,9 @@ browser-mcp-server = "browser_automation.mcp.server:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"browser_automation.presentation" = ["*.js"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

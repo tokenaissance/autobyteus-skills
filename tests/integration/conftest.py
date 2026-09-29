@@ -24,6 +24,33 @@ class LocalSite:
         return f"{self.origin}{path}"
 
 
+DEMO_PAGE = """<!doctype html><html><head><title>Presentation Demo</title></head><body>
+<button id="save" type="button">Save</button>
+<div id="wrapper"><span>Wrapped label</span></div>
+<button class="dup" type="button">Duplicate</button><button class="dup" type="button">Duplicate</button>
+<button type="button" disabled>Disabled action</button>
+<button type="button" aria-label="Close dialog">x</button>
+<input id="agent-name" placeholder="Agent name">
+<textarea id="notes"></textarea>
+<div id="editor" contenteditable="true"></div>
+<select id="runtime"><option value="a">Alpha</option><option value="c">Codex</option></select>
+<div id="hover-target">Hover me</div>
+<div id="scroller" style="height:80px;overflow:auto"><div style="height:1200px">long content</div></div>
+<script>
+window.events = [];
+const log = (entry) => window.events.push(entry);
+document.getElementById('save').addEventListener('click', () => {
+  log('save');
+  setTimeout(() => { const p = document.createElement('p'); p.textContent = 'Saved'; document.body.appendChild(p); }, 300);
+});
+document.querySelectorAll('.dup').forEach((button, index) => button.addEventListener('click', () => log('dup' + index)));
+document.querySelector('[aria-label="Close dialog"]').addEventListener('click', () => log('close'));
+document.getElementById('hover-target').addEventListener('mouseenter', () => log('hover'));
+document.getElementById('agent-name').addEventListener('change', (event) => log('change:' + event.target.value));
+document.addEventListener('keydown', (event) => log('key:' + event.key + (event.metaKey ? '+meta' : '')));
+</script></body></html>"""
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -39,7 +66,9 @@ class Handler(BaseHTTPRequestHandler):
             time.sleep(float(query.get("delay", ["2"])[0]))
         token = query.get("token", ["default"])[0]
         title = query.get("title", ["Browser Automation Integration"])[0]
-        if parsed.path == "/next":
+        if parsed.path == "/demo":
+            body = DEMO_PAGE
+        elif parsed.path == "/next":
             body = f"""<!doctype html><html><head><title>{title}</title></head>
 <body><h1 id="heading">Next Page {token}</h1><a id="back" href="/page">Back</a></body></html>"""
         else:
